@@ -1,0 +1,14 @@
+{
+    "_info": "Grove Mainnet Production controller configuration.",
+
+    "chainId": 1,
+    "controller": "0x0000000000000000000000000000000000000000",
+
+    "integrationIds": {
+        "basinFacet": "BASIN_FACET",
+        "erc4626Facet": "ERC4626_FACET",
+        "mapleFacet": "MAPLE_FACET",
+        "uniswapV3Facet": "UNISWAP_V3_FACET"
+    }
+
+}
