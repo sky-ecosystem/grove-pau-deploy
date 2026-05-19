@@ -23,7 +23,6 @@ contract TransferRoles is Script {
 
     bytes32 internal constant ALLOCATOR_ROLE       = keccak256("ALLOCATOR_ROLE");
     bytes32 internal constant ALLOCATOR_ADMIN_ROLE = keccak256("ALLOCATOR_ADMIN_ROLE");
-    bytes32 internal constant DEFAULT_ADMIN_ROLE   = 0x00;
 
     function run() external {
         string memory chain = vm.envOr("CHAIN", string("mainnet"));
@@ -58,8 +57,8 @@ contract TransferRoles is Script {
 
         // Step 3: Transfer DEFAULT_ADMIN_ROLE to admin and revoke from deployer.
 
-        accessControls.grantRole(DEFAULT_ADMIN_ROLE,  admin);
-        accessControls.revokeRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(),  admin);
+        accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), msg.sender);
 
         console2.log("Roles transferred");
 
