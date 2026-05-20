@@ -5,10 +5,10 @@ import { VmSafe } from "../lib/forge-std/src/Vm.sol";
 
 import { IAccessControl }                 from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
 import { IEnumerableIntegrations as IEI } from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
+import { IMainnetControllerFull }         from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
 import { AccessControls } from "../lib/diamond-pau/src/AccessControls.sol";
 import { Beacon }         from "../lib/diamond-pau/src/Beacon.sol";
-import { Controller }     from "../lib/diamond-pau/src/Controller.sol";
 
 import { IERC4626Facet }   from "../lib/diamond-pau/src/facets/erc4626/IERC4626Facet.sol";
 import { IUniswapV3Facet } from "../lib/diamond-pau/src/facets/uniswap-v3/IUniswapV3Facet.sol";
@@ -58,16 +58,16 @@ contract PostDeployTests is PostDeployTestBase {
     address internal constant UNISWAP_V3_DAI_USDC_POOL  = 0x6c6Bc977E13Df9b0de53b251522280BB72383700;
     address internal constant UNISWAP_V3_USDC_USDT_POOL = 0x3416cF6C708Da44DB2624D63ea0AAef7113527C6;
 
-    AccessControls internal accessControls;
-    Beacon         internal beacon;
-    Controller     internal controller;
+    AccessControls         internal accessControls;
+    Beacon                 internal beacon;
+    IMainnetControllerFull internal controller;
 
     function setUp() public {
         vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
 
         accessControls = AccessControls(ACCESS_CONTROLS);
         beacon         = Beacon(BEACON);
-        controller     = Controller(payable(CONTROLLER));
+        controller     = IMainnetControllerFull(payable(CONTROLLER));
     }
 
     function _getBlock() internal pure returns (uint256) {
@@ -75,13 +75,10 @@ contract PostDeployTests is PostDeployTestBase {
     }
 
     function test_deployState() external {
-        // Controller initializes with the correct state.
-        assertEq(controller.accessControls(), ACCESS_CONTROLS);
-        assertEq(controller.beacon(),         BEACON);
-        assertEq(controller.proxy(),          ALM_PROXY);
-        assertEq(controller.rateLimits(),     RATE_LIMITS);
+       /*******************************************************************************************/
+       /*** AccessControls post deploy state                                                    ***/
+       /*******************************************************************************************/
 
-        // AccessControls roles
         assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       ALLOCATOR),          true);
         assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       BACKSTOP_ALLOCATOR), true);
         assertEq(accessControls.hasRole(ALLOCATOR_ADMIN_ROLE, ALLOCATOR_ADMIN),    true);
@@ -97,6 +94,40 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       DEPLOYER), false);
         assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE,   DEPLOYER), false);
         assertEq(accessControls.hasRole(ALLOCATOR_ADMIN_ROLE, DEPLOYER), false);
+
+       /*******************************************************************************************/
+       /*** Controller post deploy state                                                        ***/
+       /*******************************************************************************************/
+
+        // Constructor initializes with the correct state.
+        assertEq(controller.accessControls(), ACCESS_CONTROLS);
+        assertEq(controller.beacon(),         BEACON);
+        assertEq(controller.proxy(),          ALM_PROXY);
+        assertEq(controller.rateLimits(),     RATE_LIMITS);
+
+        // Configurations: updateIntegrations.
+
+        IEI.Integration[] memory integrations = controller.integrations();
+
+        assertEq(integrations.length, 4);
+
+        assertEq(integrations[0].id, bytes32(keccak256(abi.encodePacked("BASIN_FACET"))));
+        assertEq(integrations[1].id, bytes32(keccak256(abi.encodePacked("OTC_FACET"))));
+        assertEq(integrations[2].id, bytes32(keccak256(abi.encodePacked("ERC4626_FACET"))));
+        assertEq(integrations[3].id, bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
+
+        _assertIntegration(integrations[0].id);
+        _assertIntegration(integrations[1].id);
+        _assertIntegration(integrations[2].id);
+        _assertIntegration(integrations[3].id);
+
+        // Configurations: setMaxExchangeRate.
+        _assertMaxExchangeRate(Ethereum.SUSDS);
+        _assertMaxExchangeRate(Ethereum.SUSDE);
+
+        // Configurations: migrate UniswapV3 pools.
+        _assertUniswapV3PoolMigration(UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3PoolMigration(UNISWAP_V3_USDC_USDT_POOL);
     }
 
     function test_postDeployEvents() external {
@@ -185,6 +216,40 @@ contract PostDeployTests is PostDeployTestBase {
         _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[15],             UNISWAP_V3_USDC_USDT_POOL);
     }
 
+    function _assertIntegration(bytes32 integrationId) internal {
+        IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
+        IEI.Config memory controllerConfig = controller.getConfig(integrationId);
+
+        assertEq(controllerConfig.facet,        beaconConfig.facet);
+        assertEq(controllerConfig.wires.length, beaconConfig.wires.length);
+
+        for (uint256 i = 0; i < controllerConfig.wires.length; ++i) {
+            assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
+            assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
+        }
+    }
+    
+    function _assertMaxExchangeRate(address token) internal {
+        uint256 oldMaxExchangeRate = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxExchangeRates(token);
+
+        assertEq(controller.maxExchangeRates(token), oldMaxExchangeRate);
+    }
+
+    function _assertUniswapV3PoolMigration(address pool) internal {
+        IOldMainnetControllerLike oldController = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER);
+
+        IOldMainnetControllerLike.UniswapV3PoolParams memory oldPoolParams = oldController.uniswapV3PoolParams(pool);
+
+        assertEq(controller.getUniswapV3MaxSlippage(pool), oldController.maxSlippages(pool));
+
+        ( int24 lowerTickBound, int24 upperTickBound ) = controller.getUniswapV3AddLiquidityTickBounds(pool);
+
+        assertEq(controller.getUniswapV3PoolMaxTickDelta(pool), oldPoolParams.swapMaxTickDelta);
+        assertEq(lowerTickBound,                                oldPoolParams.addLiquidityTickBounds.lower);
+        assertEq(upperTickBound,                                oldPoolParams.addLiquidityTickBounds.upper);
+        assertEq(controller.getUniswapV3TWAPSecondsAgo(pool),   oldPoolParams.twapSecondsAgo);
+    }
+
     function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal {
         IEI.Config memory controllerConfig = abi.decode(log.data, (IEI.Config));
         IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
@@ -192,10 +257,13 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(log.topics[0], IEI.IntegrationSet.selector);
         assertEq(log.topics[1], integrationId);
 
-        assertEq(controllerConfig.facet,                     beaconConfig.facet);
-        assertEq(controllerConfig.wires.length,              beaconConfig.wires.length);
-        assertEq(controllerConfig.wires[0].callSelector,     beaconConfig.wires[0].callSelector);
-        assertEq(controllerConfig.wires[0].delegateSelector, beaconConfig.wires[0].delegateSelector);
+        assertEq(controllerConfig.facet,        beaconConfig.facet);
+        assertEq(controllerConfig.wires.length, beaconConfig.wires.length);
+
+        for (uint256 i = 0; i < controllerConfig.wires.length; ++i) {
+            assertEq(controllerConfig.wires[i].callSelector,     beaconConfig.wires[i].callSelector);
+            assertEq(controllerConfig.wires[i].delegateSelector, beaconConfig.wires[i].delegateSelector);
+        }
     }
 
     function _assertERC4626MaxExchangeRateSetEvent(VmSafe.EthGetLogs memory log, address token) internal {
