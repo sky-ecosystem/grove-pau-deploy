@@ -3,15 +3,40 @@ pragma solidity ^0.8.34;
 
 import { VmSafe } from "../lib/forge-std/src/Vm.sol";
 
-import { IAccessControl }          from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
-import { IEnumerableIntegrations } from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
+import { IAccessControl }                 from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+import { IEnumerableIntegrations as IEI } from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
 
 import { AccessControls } from "../lib/diamond-pau/src/AccessControls.sol";
+import { Beacon }         from "../lib/diamond-pau/src/Beacon.sol";
 import { Controller }     from "../lib/diamond-pau/src/Controller.sol";
+
+import { IERC4626Facet }   from "../lib/diamond-pau/src/facets/erc4626/IERC4626Facet.sol";
+import { IUniswapV3Facet } from "../lib/diamond-pau/src/facets/uniswap-v3/IUniswapV3Facet.sol";
 
 import { Ethereum } from "../lib/grove-address-registry/src/Ethereum.sol";
 
 import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
+
+interface IOldMainnetControllerLike {
+
+    struct Tick {
+        int24 lower;
+        int24 upper;
+    }
+
+    struct UniswapV3PoolParams {
+        uint24 swapMaxTickDelta;
+        Tick   addLiquidityTickBounds;
+        uint32 twapSecondsAgo;
+    }
+
+    function maxExchangeRates(address vault) external view returns (uint256 maxExchangeRate);
+
+    function maxSlippages(address pool) external view returns (uint256 maxSlippage);
+
+    function uniswapV3PoolParams(address pool) external view returns (UniswapV3PoolParams memory);
+
+}
 
 contract PostDeployTests is PostDeployTestBase {
 
@@ -30,13 +55,18 @@ contract PostDeployTests is PostDeployTestBase {
     address internal constant BACKSTOP_ALLOCATOR = Ethereum.GROVE_SECONDARY_RELAYER_OPERATOR;
     address internal constant RATE_LIMITS        = Ethereum.ALM_RATE_LIMITS;
 
+    address internal constant UNISWAP_V3_DAI_USDC_POOL  = 0x6c6Bc977E13Df9b0de53b251522280BB72383700;
+    address internal constant UNISWAP_V3_USDC_USDT_POOL = 0x3416cF6C708Da44DB2624D63ea0AAef7113527C6;
+
     AccessControls internal accessControls;
+    Beacon         internal beacon;
     Controller     internal controller;
 
     function setUp() public {
         vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
 
         accessControls = AccessControls(ACCESS_CONTROLS);
+        beacon         = Beacon(BEACON);
         controller     = Controller(payable(CONTROLLER));
     }
 
@@ -127,6 +157,99 @@ contract PostDeployTests is PostDeployTestBase {
        /*** Controller events                                                                   ***/
        /*******************************************************************************************/
 
-        // @TODO
+        VmSafe.EthGetLogs[] memory controllerAllLogs = _getEvents(block.chainid, CONTROLLER, "");
+
+        assertEq(controllerAllLogs.length, 16);
+
+        // IntegrationSet(integrationId, config) from ConfigureController: updateIntegrations.
+        _assertIntegrationSetEvent(controllerAllLogs[0], bytes32(keccak256(abi.encodePacked("BASIN_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[1], bytes32(keccak256(abi.encodePacked("OTC_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[2], bytes32(keccak256(abi.encodePacked("ERC4626_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[3], bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
+
+        // ERC4626MaxExchangeRateSet(token, maxExchangeRate) from ConfigureController: setMaxExchangeRate.
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[4], Ethereum.SUSDS);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[5], Ethereum.SUSDE);
+
+        // UniswapV3 Migration events.
+        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[6],                UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[7],           UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[8], UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[9], UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[10],            UNISWAP_V3_DAI_USDC_POOL);
+
+        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[11],                UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[12],           UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[13], UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[14], UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[15],             UNISWAP_V3_USDC_USDT_POOL);
     }
+
+    function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal {
+        IEI.Config memory controllerConfig = abi.decode(log.data, (IEI.Config));
+        IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
+
+        assertEq(log.topics[0], IEI.IntegrationSet.selector);
+        assertEq(log.topics[1], integrationId);
+
+        assertEq(controllerConfig.facet,                     beaconConfig.facet);
+        assertEq(controllerConfig.wires.length,              beaconConfig.wires.length);
+        assertEq(controllerConfig.wires[0].callSelector,     beaconConfig.wires[0].callSelector);
+        assertEq(controllerConfig.wires[0].delegateSelector, beaconConfig.wires[0].delegateSelector);
+    }
+
+    function _assertERC4626MaxExchangeRateSetEvent(VmSafe.EthGetLogs memory log, address token) internal {
+        uint256 oldMaxExchangeRate = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxExchangeRates(token);
+
+        assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
+        assertEq(_toAddress(log.topics[1]), token);
+        assertEq(log.data,                  abi.encode(oldMaxExchangeRate));
+    }
+
+    function _assertUniswapV3MaxSlippageSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+        uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(pool);
+
+        assertEq(log.topics[0],             IUniswapV3Facet.UniswapV3MaxSlippageSet.selector);
+        assertEq(_toAddress(log.topics[1]), pool);
+        assertEq(log.data,                  abi.encode(oldMaxSlippage));
+    }
+
+    function _assertUniswapV3PoolMaxTickDeltaSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+        uint24 oldMaxTickDelta = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).uniswapV3PoolParams(pool).swapMaxTickDelta;
+
+        assertEq(log.topics[0],             IUniswapV3Facet.UniswapV3MaxTickDeltaSet.selector);
+        assertEq(_toAddress(log.topics[1]), pool);
+        assertEq(log.data,                  abi.encode(oldMaxTickDelta));
+    }
+
+    function _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+        int24 oldLowerTickBound = IOldMainnetControllerLike(
+            Ethereum.ALM_CONTROLLER
+        ).uniswapV3PoolParams(pool).addLiquidityTickBounds.lower;
+
+        assertEq(log.topics[0],             IUniswapV3Facet.UniswapV3LowerTickSet.selector);
+        assertEq(_toAddress(log.topics[1]), pool);
+        assertEq(log.data,                  abi.encode(oldLowerTickBound));
+    }
+
+    function _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+        int24 oldUpperTickBound = IOldMainnetControllerLike(
+            Ethereum.ALM_CONTROLLER
+        ).uniswapV3PoolParams(pool).addLiquidityTickBounds.upper;
+
+        assertEq(log.topics[0],             IUniswapV3Facet.UniswapV3UpperTickSet.selector);
+        assertEq(_toAddress(log.topics[1]), pool);
+        assertEq(log.data,                  abi.encode(oldUpperTickBound));
+    }
+
+    function _assertUniswapV3TWAPSecondsAgoSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+        uint32 oldTWAPSecondsAgo = IOldMainnetControllerLike(
+            Ethereum.ALM_CONTROLLER
+        ).uniswapV3PoolParams(pool).twapSecondsAgo;
+
+        assertEq(log.topics[0],             IUniswapV3Facet.UniswapV3TWAPSecondsAgoSet.selector);
+        assertEq(_toAddress(log.topics[1]), pool);
+        assertEq(log.data,                  abi.encode(oldTWAPSecondsAgo));
+    }
+
 }
