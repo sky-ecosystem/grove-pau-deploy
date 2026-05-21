@@ -74,7 +74,7 @@ contract PostDeployTests is PostDeployTestBase {
         return 25130165;
     }
 
-    function test_deployState() external {
+    function test_deployState() external view {
        /*******************************************************************************************/
        /*** AccessControls post deploy state                                                    ***/
        /*******************************************************************************************/
