@@ -14,6 +14,8 @@ interface IAccessControlsLike {
 
     function setRoleAdmin(bytes32 role, bytes32 adminRole) external;
 
+    function revokeRole(bytes32 role, address account) external;
+
 }
 
 contract TransferRoles is Script {

@@ -75,8 +75,8 @@ contract ConfigureController is Script {
 
         // Step 2: Migrate max exchange rates.
 
-        _migrateMaxExchangeRates(Ethereum.SUSDS, 10);
-        _migrateMaxExchangeRates(Ethereum.SUSDE, 10);
+        _migrateERC4626MaxExchangeRates(Ethereum.SUSDS, 10);
+        _migrateERC4626MaxExchangeRates(Ethereum.SUSDE, 10);
 
         console2.log("Max exchange rates migrated");
 
@@ -90,25 +90,23 @@ contract ConfigureController is Script {
         vm.stopBroadcast();
     }
 
+    // @NOTE: Hardcoded integration IDs. Update this function to read from the config file if new integrations are added.
     function _updateIntegrations() internal {
-        IntegrationIds memory integrationIds = _getIntegrationIds();
+        bytes32[] memory integrationIds = new bytes32[](4);
+
+        integrationIds[0] = bytes32(keccak256(abi.encodePacked(".integrationIds.basinFacet")));
+        integrationIds[1] = bytes32(keccak256(abi.encodePacked(".integrationIds.erc4626Facet")));
+        integrationIds[2] = bytes32(keccak256(abi.encodePacked(".integrationIds.mapleFacet")));
+        integrationIds[3] = bytes32(keccak256(abi.encodePacked(".integrationIds.uniswapV3Facet")));
 
         controller.updateIntegrations(integrationIds);
     }
 
-    // @NOTE: Hardcoded integration IDs. Update this function to read from the config file if new integrations are added.
-    function _getIntegrationIds() internal pure returns (IntegrationIds memory integrationIds) {
-        integrationIds.basinFacet     = bytes32(keccak256(abi.encodePacked(".integrationIds.basinFacet")));
-        integrationIds.erc4626Facet   = bytes32(keccak256(abi.encodePacked(".integrationIds.erc4626Facet")));
-        integrationIds.mapleFacet     = bytes32(keccak256(abi.encodePacked(".integrationIds.mapleFacet")));
-        integrationIds.uniswapV3Facet = bytes32(keccak256(abi.encodePacked(".integrationIds.uniswapV3Facet")));
-    }
-
-    function _migrateMaxExchangeRates(address vault, uint256 rate) internal {
-        controller.setMaxExchangeRate(vault, 1, rate);
+    function _migrateERC4626MaxExchangeRates(address vault, uint256 rate) internal {
+        controller.erc4626_setMaxExchangeRate(vault, 1, rate);
 
         require(
-            controller.maxExchangeRates(vault) == oldController.maxExchangeRates(vault),
+            controller.erc4626_getMaxExchangeRate(vault) == oldController.maxExchangeRates(vault),
             "ConfigureController/max-exchange-rate-not-migrated"
         );
     }
@@ -116,16 +114,16 @@ contract ConfigureController is Script {
     function _migrateUniswapV3Pool(address pool) internal {
         // Step 1: Migrate max slippages.
 
-        controller.setUniswapV3MaxSlippage(pool, oldController.maxSlippages(pool));
+        controller.uniswapV3_setMaxSlippage(pool, oldController.maxSlippages(pool));
 
         // Step 2: Migrate pool params.
 
-        UniswapV3PoolParams memory oldPoolParams = oldController.uniswapV3PoolParams(pool);
+        IOldMainnetControllerLike.UniswapV3PoolParams memory oldPoolParams = oldController.uniswapV3PoolParams(pool);
 
-        controller.setUniswapV3PoolMaxTickDelta(pool,           oldPoolParams.swapMaxTickDelta);
-        controller.setUniswapV3AddLiquidityLowerTickBound(pool, oldPoolParams.addLiquidityTickBounds.lower);
-        controller.setUniswapV3AddLiquidityUpperTickBound(pool, oldPoolParams.addLiquidityTickBounds.upper);
-        controller.setUniswapV3TWAPSecondsAgo(pool,             oldPoolParams.twapSecondsAgo);
+        controller.uniswapV3_setMaxTickDelta(pool,            oldPoolParams.swapMaxTickDelta);
+        controller.uniswapV3_setLiquidityLowerTickBound(pool, oldPoolParams.addLiquidityTickBounds.lower);
+        controller.uniswapV3_setLiquidityUpperTickBound(pool, oldPoolParams.addLiquidityTickBounds.upper);
+        controller.uniswapV3_setTWAPSecondsAgo(pool,          oldPoolParams.twapSecondsAgo);
     }
 
 }

@@ -216,7 +216,7 @@ contract PostDeployTests is PostDeployTestBase {
         _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[15],             UNISWAP_V3_USDC_USDT_POOL);
     }
 
-    function _assertIntegration(bytes32 integrationId) internal {
+    function _assertIntegration(bytes32 integrationId) internal view{
         IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
         IEI.Config memory controllerConfig = controller.getConfig(integrationId);
 
@@ -229,28 +229,28 @@ contract PostDeployTests is PostDeployTestBase {
         }
     }
     
-    function _assertMaxExchangeRate(address token) internal {
+    function _assertMaxExchangeRate(address token) internal view {
         uint256 oldMaxExchangeRate = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxExchangeRates(token);
 
-        assertEq(controller.maxExchangeRates(token), oldMaxExchangeRate);
+        assertEq(controller.erc4626_getMaxExchangeRate(token), oldMaxExchangeRate);
     }
 
-    function _assertUniswapV3PoolMigration(address pool) internal {
+    function _assertUniswapV3PoolMigration(address pool) internal view {
         IOldMainnetControllerLike oldController = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER);
 
         IOldMainnetControllerLike.UniswapV3PoolParams memory oldPoolParams = oldController.uniswapV3PoolParams(pool);
 
-        assertEq(controller.getUniswapV3MaxSlippage(pool), oldController.maxSlippages(pool));
+        assertEq(controller.uniswapV3_getMaxSlippage(pool), oldController.maxSlippages(pool));
 
-        ( int24 lowerTickBound, int24 upperTickBound ) = controller.getUniswapV3AddLiquidityTickBounds(pool);
+        ( int24 lowerTickBound, int24 upperTickBound ) = controller.uniswapV3_getLiquidityTickBounds(pool);
 
-        assertEq(controller.getUniswapV3PoolMaxTickDelta(pool), oldPoolParams.swapMaxTickDelta);
-        assertEq(lowerTickBound,                                oldPoolParams.addLiquidityTickBounds.lower);
-        assertEq(upperTickBound,                                oldPoolParams.addLiquidityTickBounds.upper);
-        assertEq(controller.getUniswapV3TWAPSecondsAgo(pool),   oldPoolParams.twapSecondsAgo);
+        assertEq(controller.uniswapV3_getMaxTickDelta(pool),   oldPoolParams.swapMaxTickDelta);
+        assertEq(lowerTickBound,                               oldPoolParams.addLiquidityTickBounds.lower);
+        assertEq(upperTickBound,                               oldPoolParams.addLiquidityTickBounds.upper);
+        assertEq(controller.uniswapV3_getTWAPSecondsAgo(pool), oldPoolParams.twapSecondsAgo);
     }
 
-    function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal {
+    function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal view {
         IEI.Config memory controllerConfig = abi.decode(log.data, (IEI.Config));
         IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
 
@@ -266,7 +266,7 @@ contract PostDeployTests is PostDeployTestBase {
         }
     }
 
-    function _assertERC4626MaxExchangeRateSetEvent(VmSafe.EthGetLogs memory log, address token) internal {
+    function _assertERC4626MaxExchangeRateSetEvent(VmSafe.EthGetLogs memory log, address token) internal view {
         uint256 oldMaxExchangeRate = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxExchangeRates(token);
 
         assertEq(log.topics[0],             IERC4626Facet.ERC4626MaxExchangeRateSet.selector);
@@ -274,7 +274,7 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(log.data,                  abi.encode(oldMaxExchangeRate));
     }
 
-    function _assertUniswapV3MaxSlippageSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+    function _assertUniswapV3MaxSlippageSetEvent(VmSafe.EthGetLogs memory log, address pool) internal view {
         uint256 oldMaxSlippage = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxSlippages(pool);
 
         assertEq(log.topics[0],             IUniswapV3Facet.UniswapV3MaxSlippageSet.selector);
@@ -282,7 +282,7 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(log.data,                  abi.encode(oldMaxSlippage));
     }
 
-    function _assertUniswapV3PoolMaxTickDeltaSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+    function _assertUniswapV3PoolMaxTickDeltaSetEvent(VmSafe.EthGetLogs memory log, address pool) internal view {
         uint24 oldMaxTickDelta = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).uniswapV3PoolParams(pool).swapMaxTickDelta;
 
         assertEq(log.topics[0],             IUniswapV3Facet.UniswapV3MaxTickDeltaSet.selector);
@@ -290,7 +290,7 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(log.data,                  abi.encode(oldMaxTickDelta));
     }
 
-    function _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+    function _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(VmSafe.EthGetLogs memory log, address pool) internal view {
         int24 oldLowerTickBound = IOldMainnetControllerLike(
             Ethereum.ALM_CONTROLLER
         ).uniswapV3PoolParams(pool).addLiquidityTickBounds.lower;
@@ -300,7 +300,7 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(log.data,                  abi.encode(oldLowerTickBound));
     }
 
-    function _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+    function _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(VmSafe.EthGetLogs memory log, address pool) internal view {
         int24 oldUpperTickBound = IOldMainnetControllerLike(
             Ethereum.ALM_CONTROLLER
         ).uniswapV3PoolParams(pool).addLiquidityTickBounds.upper;
@@ -310,7 +310,7 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(log.data,                  abi.encode(oldUpperTickBound));
     }
 
-    function _assertUniswapV3TWAPSecondsAgoSetEvent(VmSafe.EthGetLogs memory log, address pool) internal {
+    function _assertUniswapV3TWAPSecondsAgoSetEvent(VmSafe.EthGetLogs memory log, address pool) internal view {
         uint32 oldTWAPSecondsAgo = IOldMainnetControllerLike(
             Ethereum.ALM_CONTROLLER
         ).uniswapV3PoolParams(pool).twapSecondsAgo;
