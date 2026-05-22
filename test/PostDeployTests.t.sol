@@ -193,10 +193,10 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(controllerAllLogs.length, 16);
 
         // IntegrationSet(integrationId, config) from ConfigureController: updateIntegrations.
-        _assertIntegrationSetEvent(controllerAllLogs[0], bytes32(keccak256(abi.encodePacked("BASIN_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[1], bytes32(keccak256(abi.encodePacked("OTC_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[2], bytes32(keccak256(abi.encodePacked("ERC4626_FACET"))));
-        _assertIntegrationSetEvent(controllerAllLogs[3], bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
+        _assertIntegrationSetEvent(controllerAllLogs[0], bytes32(abi.encodePacked("BASIN_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[1], bytes32(abi.encodePacked("OTC_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[2], bytes32(abi.encodePacked("ERC4626_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[3], bytes32(abi.encodePacked("UNISWAP_V3_FACET")));
 
         // ERC4626MaxExchangeRateSet(token, maxExchangeRate) from ConfigureController: setMaxExchangeRate.
         _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[4], Ethereum.SUSDS);

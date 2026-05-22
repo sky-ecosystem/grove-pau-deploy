@@ -97,8 +97,8 @@ contract ConfigureController is Script {
 
         // Step 2: Migrate max exchange rates.
 
-        _migrateERC4626MaxExchangeRates(Ethereum.SUSDS, 10);
-        _migrateERC4626MaxExchangeRates(Ethereum.SUSDE, 10);
+        _migrateERC4626MaxExchangeRates(Ethereum.SUSDS);
+        _migrateERC4626MaxExchangeRates(Ethereum.SUSDE);
 
         console2.log("Max exchange rates migrated");
 
@@ -112,11 +112,13 @@ contract ConfigureController is Script {
         vm.stopBroadcast();
     }
 
-    function _migrateERC4626MaxExchangeRates(address vault, uint256 rate) internal {
-        controller.erc4626_setMaxExchangeRate(vault, 1, rate);
+    function _migrateERC4626MaxExchangeRates(address vault) internal {
+        uint256 oldRate = oldController.maxExchangeRates(vault);
+        
+        controller.erc4626_setMaxExchangeRate(vault, controller.erc4626_EXCHANGE_RATE_PRECISION(), oldRate);
 
         require(
-            controller.erc4626_getMaxExchangeRate(vault) == oldController.maxExchangeRates(vault),
+            controller.erc4626_getMaxExchangeRate(vault) == oldRate,
             "ConfigureController/max-exchange-rate-not-migrated"
         );
     }
