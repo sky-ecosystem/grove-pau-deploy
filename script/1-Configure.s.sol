@@ -122,6 +122,7 @@ contract ConfigureController is Script {
         uint256 i;
 
         if (allIntegrationIds.aaveFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.aaveFacet;
+        if (allIntegrationIds.basinFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.basinFacet;
         if (allIntegrationIds.cctpFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.cctpFacet;
         if (allIntegrationIds.centrifugeFacet    != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.centrifugeFacet;
         if (allIntegrationIds.curveFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.curveFacet;
@@ -156,12 +157,14 @@ contract ConfigureController is Script {
         string memory config
     ) internal pure returns (IntegrationIds memory integrationIds) {
         integrationIds.aaveFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.aaveFacet"))));
+        integrationIds.basinFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.basinFacet"))));
         integrationIds.cctpFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.cctpFacet"))));
         integrationIds.centrifugeFacet    = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.centrifugeFacet"))));
         integrationIds.curveFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.curveFacet"))));
         integrationIds.daiUsdsFacet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.daiUsdsFacet"))));
         integrationIds.erc4626Facet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.erc4626Facet"))));
         integrationIds.erc7540Facet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.erc7540Facet"))));
+        integrationIds.ethenaFacet        = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.ethenaFacet"))));
         integrationIds.farmFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.farmFacet"))));
         integrationIds.layerZeroFacet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.layerZeroFacet"))));
         integrationIds.mapleFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.mapleFacet"))));
@@ -175,7 +178,6 @@ contract ConfigureController is Script {
         integrationIds.transferAssetFacet = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.transferAssetFacet"))));
         integrationIds.uniswapV3Facet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.uniswapV3Facet"))));
         integrationIds.uniswapV4Facet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.uniswapV4Facet"))));
-        integrationIds.ethenaFacet        = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.ethenaFacet"))));
         integrationIds.usdsFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.usdsFacet"))));
         integrationIds.weethFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.weethFacet"))));
         integrationIds.wrapProxyETHFacet  = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.wrapProxyETHFacet"))));
