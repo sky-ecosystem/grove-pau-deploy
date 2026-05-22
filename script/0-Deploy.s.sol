@@ -9,7 +9,7 @@ import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 import { AccessControls } from "../lib/diamond-pau/src/AccessControls.sol";
 import { Controller }     from "../lib/diamond-pau/src/Controller.sol";
 
-contract DeployAccessControls is Script {
+contract DeployAccessControlsAndController is Script {
 
     using stdJson     for string;
     using ScriptTools for string;
@@ -25,7 +25,7 @@ contract DeployAccessControls is Script {
         string memory fileSlug = string(abi.encodePacked("deploy-", chain, "-", env));
         string memory config   = ScriptTools.loadConfig(fileSlug);
 
-        require(block.chainid == config.readUint(".chainId"), "DeployAccessControls/Invalid chain ID");
+        require(block.chainid == config.readUint(".chainId"), "DeployAccessControlsAndController/Invalid chain ID");
 
         vm.startBroadcast();
 
