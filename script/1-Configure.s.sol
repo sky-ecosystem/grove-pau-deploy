@@ -36,13 +36,6 @@ contract ConfigureController is Script {
     using stdJson     for string;
     using ScriptTools for string;
 
-    struct IntegrationIds {
-        bytes32 basinFacet;
-        bytes32 erc4626Facet;
-        bytes32 mapleFacet;
-        bytes32 uniswapV3Facet;
-    }
-
     address internal constant UNISWAP_V3_DAI_USDC_POOL  = 0x6c6Bc977E13Df9b0de53b251522280BB72383700;
     address internal constant UNISWAP_V3_USDC_USDT_POOL = 0x3416cF6C708Da44DB2624D63ea0AAef7113527C6;
 
