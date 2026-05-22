@@ -172,7 +172,7 @@ contract ConfigureController is Script {
         if (allIntegrationIds.wrapProxyETHFacet  != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.wrapProxyETHFacet;
         if (allIntegrationIds.wstethFacet        != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.wstethFacet;
 
-        require(i + 1 == config.readUint(".integrationIds.length"), "ConfigureController/invalid-number-of-facets");
+        require(i == config.readUint(".integrationIds.length"), "ConfigureController/invalid-number-of-facets");
 
         controller.updateIntegrations(integrationIds);
     }
@@ -180,32 +180,32 @@ contract ConfigureController is Script {
     function _readIntegrationIds(
         string memory config
     ) internal pure returns (IntegrationIds memory integrationIds) {
-        integrationIds.aaveFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.aaveFacet"))));
-        integrationIds.basinFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.basinFacet"))));
-        integrationIds.cctpFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.cctpFacet"))));
-        integrationIds.centrifugeFacet    = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.centrifugeFacet"))));
-        integrationIds.curveFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.curveFacet"))));
-        integrationIds.daiUsdsFacet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.daiUsdsFacet"))));
-        integrationIds.erc4626Facet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.erc4626Facet"))));
-        integrationIds.erc7540Facet       = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.erc7540Facet"))));
-        integrationIds.ethenaFacet        = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.ethenaFacet"))));
-        integrationIds.farmFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.farmFacet"))));
-        integrationIds.layerZeroFacet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.layerZeroFacet"))));
-        integrationIds.mapleFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.mapleFacet"))));
-        integrationIds.merklFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.merklFacet"))));
-        integrationIds.otcFacet           = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.otcFacet"))));
-        integrationIds.pendleFacet        = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.pendleFacet"))));
-        integrationIds.psmFacet           = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.psmFacet"))));
-        integrationIds.psm3Facet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.psm3Facet"))));
-        integrationIds.sparkVaultFacet    = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.sparkVaultFacet"))));
-        integrationIds.superstateFacet    = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.superstateFacet"))));
-        integrationIds.transferAssetFacet = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.transferAssetFacet"))));
-        integrationIds.uniswapV3Facet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.uniswapV3Facet"))));
-        integrationIds.uniswapV4Facet     = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.uniswapV4Facet"))));
-        integrationIds.usdsFacet          = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.usdsFacet"))));
-        integrationIds.weethFacet         = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.weethFacet"))));
-        integrationIds.wrapProxyETHFacet  = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.wrapProxyETHFacet"))));
-        integrationIds.wstethFacet        = bytes32(keccak256(abi.encodePacked(config.readString(".integrationIds.wstethFacet"))));
+        integrationIds.aaveFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.aaveFacet")));
+        integrationIds.basinFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.basinFacet")));
+        integrationIds.cctpFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.cctpFacet")));
+        integrationIds.centrifugeFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.centrifugeFacet")));
+        integrationIds.curveFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.curveFacet")));
+        integrationIds.daiUsdsFacet       = bytes32(abi.encodePacked(config.readString(".integrationIds.daiUsdsFacet")));
+        integrationIds.erc4626Facet       = bytes32(abi.encodePacked(config.readString(".integrationIds.erc4626Facet")));
+        integrationIds.erc7540Facet       = bytes32(abi.encodePacked(config.readString(".integrationIds.erc7540Facet")));
+        integrationIds.ethenaFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.ethenaFacet")));
+        integrationIds.farmFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.farmFacet")));
+        integrationIds.layerZeroFacet     = bytes32(abi.encodePacked(config.readString(".integrationIds.layerZeroFacet")));
+        integrationIds.mapleFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.mapleFacet")));
+        integrationIds.merklFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.merklFacet")));
+        integrationIds.otcFacet           = bytes32(abi.encodePacked(config.readString(".integrationIds.otcFacet")));
+        integrationIds.pendleFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.pendleFacet")));
+        integrationIds.psmFacet           = bytes32(abi.encodePacked(config.readString(".integrationIds.psmFacet")));
+        integrationIds.psm3Facet          = bytes32(abi.encodePacked(config.readString(".integrationIds.psm3Facet")));
+        integrationIds.sparkVaultFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.sparkVaultFacet")));
+        integrationIds.superstateFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.superstateFacet")));
+        integrationIds.transferAssetFacet = bytes32(abi.encodePacked(config.readString(".integrationIds.transferAssetFacet")));
+        integrationIds.uniswapV3Facet     = bytes32(abi.encodePacked(config.readString(".integrationIds.uniswapV3Facet")));
+        integrationIds.uniswapV4Facet     = bytes32(abi.encodePacked(config.readString(".integrationIds.uniswapV4Facet")));
+        integrationIds.usdsFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.usdsFacet")));
+        integrationIds.weethFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.weethFacet")));
+        integrationIds.wrapProxyETHFacet  = bytes32(abi.encodePacked(config.readString(".integrationIds.wrapProxyETHFacet")));
+        integrationIds.wstethFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.wstethFacet")));
     }
 
 }
