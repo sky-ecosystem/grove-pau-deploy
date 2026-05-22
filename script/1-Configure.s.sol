@@ -141,36 +141,34 @@ contract ConfigureController is Script {
 
         bytes32[] memory integrationIds = new bytes32[](config.readUint(".integrationIds.length"));
 
-        bytes32 emptyIntegrationId = bytes32(keccak256(abi.encodePacked("")));
-
         uint256 i;
 
-        if (allIntegrationIds.aaveFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.aaveFacet;
-        if (allIntegrationIds.basinFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.basinFacet;
-        if (allIntegrationIds.cctpFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.cctpFacet;
-        if (allIntegrationIds.centrifugeFacet    != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.centrifugeFacet;
-        if (allIntegrationIds.curveFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.curveFacet;
-        if (allIntegrationIds.daiUsdsFacet       != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.daiUsdsFacet;
-        if (allIntegrationIds.erc4626Facet       != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.erc4626Facet;
-        if (allIntegrationIds.erc7540Facet       != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.erc7540Facet;
-        if (allIntegrationIds.ethenaFacet        != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.ethenaFacet;
-        if (allIntegrationIds.farmFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.farmFacet;
-        if (allIntegrationIds.layerZeroFacet     != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.layerZeroFacet;
-        if (allIntegrationIds.mapleFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.mapleFacet;
-        if (allIntegrationIds.merklFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.merklFacet;
-        if (allIntegrationIds.otcFacet           != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.otcFacet;
-        if (allIntegrationIds.pendleFacet        != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.pendleFacet;
-        if (allIntegrationIds.psmFacet           != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.psmFacet;
-        if (allIntegrationIds.psm3Facet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.psm3Facet;
-        if (allIntegrationIds.sparkVaultFacet    != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.sparkVaultFacet;
-        if (allIntegrationIds.superstateFacet    != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.superstateFacet;
-        if (allIntegrationIds.transferAssetFacet != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.transferAssetFacet;
-        if (allIntegrationIds.uniswapV3Facet     != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.uniswapV3Facet;
-        if (allIntegrationIds.uniswapV4Facet     != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.uniswapV4Facet;
-        if (allIntegrationIds.usdsFacet          != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.usdsFacet;
-        if (allIntegrationIds.weethFacet         != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.weethFacet;
-        if (allIntegrationIds.wrapProxyETHFacet  != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.wrapProxyETHFacet;
-        if (allIntegrationIds.wstethFacet        != emptyIntegrationId) integrationIds[i++] = allIntegrationIds.wstethFacet;
+        if (allIntegrationIds.aaveFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.aaveFacet;
+        if (allIntegrationIds.basinFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.basinFacet;
+        if (allIntegrationIds.cctpFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.cctpFacet;
+        if (allIntegrationIds.centrifugeFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.centrifugeFacet;
+        if (allIntegrationIds.curveFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.curveFacet;
+        if (allIntegrationIds.daiUsdsFacet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.daiUsdsFacet;
+        if (allIntegrationIds.erc4626Facet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.erc4626Facet;
+        if (allIntegrationIds.erc7540Facet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.erc7540Facet;
+        if (allIntegrationIds.ethenaFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.ethenaFacet;
+        if (allIntegrationIds.farmFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.farmFacet;
+        if (allIntegrationIds.layerZeroFacet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.layerZeroFacet;
+        if (allIntegrationIds.mapleFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.mapleFacet;
+        if (allIntegrationIds.merklFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.merklFacet;
+        if (allIntegrationIds.otcFacet           != bytes32(0)) integrationIds[i++] = allIntegrationIds.otcFacet;
+        if (allIntegrationIds.pendleFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.pendleFacet;
+        if (allIntegrationIds.psmFacet           != bytes32(0)) integrationIds[i++] = allIntegrationIds.psmFacet;
+        if (allIntegrationIds.psm3Facet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.psm3Facet;
+        if (allIntegrationIds.sparkVaultFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.sparkVaultFacet;
+        if (allIntegrationIds.superstateFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.superstateFacet;
+        if (allIntegrationIds.transferAssetFacet != bytes32(0)) integrationIds[i++] = allIntegrationIds.transferAssetFacet;
+        if (allIntegrationIds.uniswapV3Facet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.uniswapV3Facet;
+        if (allIntegrationIds.uniswapV4Facet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.uniswapV4Facet;
+        if (allIntegrationIds.usdsFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.usdsFacet;
+        if (allIntegrationIds.weethFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.weethFacet;
+        if (allIntegrationIds.wrapProxyETHFacet  != bytes32(0)) integrationIds[i++] = allIntegrationIds.wrapProxyETHFacet;
+        if (allIntegrationIds.wstethFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.wstethFacet;
 
         require(i == config.readUint(".integrationIds.length"), "ConfigureController/invalid-number-of-facets");
 
