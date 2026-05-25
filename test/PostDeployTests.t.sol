@@ -4,6 +4,7 @@ pragma solidity ^0.8.34;
 import { VmSafe } from "../lib/forge-std/src/Vm.sol";
 
 import { IAccessControl }                 from "../lib/diamond-pau/lib/openzeppelin-contracts/contracts/access/IAccessControl.sol";
+import { Initializable }                  from "../lib/diamond-pau/lib/oz-upgradeable/contracts/proxy/utils/Initializable.sol";
 import { IEnumerableIntegrations as IEI } from "../lib/diamond-pau/src/interfaces/IEnumerableIntegrations.sol";
 import { IMainnetControllerFull }         from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
@@ -190,31 +191,38 @@ contract PostDeployTests is PostDeployTestBase {
 
         VmSafe.EthGetLogs[] memory controllerAllLogs = _getEvents(block.chainid, CONTROLLER, "");
 
-        assertEq(controllerAllLogs.length, 16);
+        assertEq(controllerAllLogs.length, 17);
+
+        // Initialized(1) from Controller constructor.
+        _assertInitializedEvent(controllerAllLogs[0]);
 
         // IntegrationSet(integrationId, config) from ConfigureController: updateIntegrations.
-        _assertIntegrationSetEvent(controllerAllLogs[0], bytes32(abi.encodePacked("BASIN_FACET")));
-        _assertIntegrationSetEvent(controllerAllLogs[1], bytes32(abi.encodePacked("OTC_FACET")));
-        _assertIntegrationSetEvent(controllerAllLogs[2], bytes32(abi.encodePacked("ERC4626_FACET")));
-        _assertIntegrationSetEvent(controllerAllLogs[3], bytes32(abi.encodePacked("UNISWAP_V3_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[1], bytes32(abi.encodePacked("BASIN_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[2], bytes32(abi.encodePacked("OTC_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[3], bytes32(abi.encodePacked("ERC4626_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[4], bytes32(abi.encodePacked("UNISWAP_V3_FACET")));
 
         // ERC4626MaxExchangeRateSet(token, maxExchangeRate) from ConfigureController: setMaxExchangeRate.
-        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[4], Ethereum.SUSDS);
-        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[5], Ethereum.SUSDE);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[5], Ethereum.SUSDS);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[6], Ethereum.SUSDE);
 
         // UniswapV3 Migration events.
-        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[6],                UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[7],           UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[8], UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[9], UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[10],            UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[7],                 UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[8],            UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[9],  UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[10], UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[11],             UNISWAP_V3_DAI_USDC_POOL);
 
-        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[11],                UNISWAP_V3_USDC_USDT_POOL);
-        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[12],           UNISWAP_V3_USDC_USDT_POOL);
-        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[13], UNISWAP_V3_USDC_USDT_POOL);
-        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[14], UNISWAP_V3_USDC_USDT_POOL);
-        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[15],             UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[12],                UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[13],           UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[14], UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[15], UNISWAP_V3_USDC_USDT_POOL);
+        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[16],             UNISWAP_V3_USDC_USDT_POOL);
     }
+
+    /*******************************************************************************************/
+    /*** Helper functions                                                                    ***/
+    /*******************************************************************************************/
 
     function _assertIntegration(bytes32 integrationId) internal view{
         IEI.Config memory beaconConfig     = beacon.getConfig(integrationId);
@@ -248,6 +256,15 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(lowerTickBound,                               oldPoolParams.addLiquidityTickBounds.lower);
         assertEq(upperTickBound,                               oldPoolParams.addLiquidityTickBounds.upper);
         assertEq(controller.uniswapV3_getTWAPSecondsAgo(pool), oldPoolParams.twapSecondsAgo);
+    }
+
+    /*******************************************************************************************/
+    /*** Event test helpers                                                                  ***/
+    /*******************************************************************************************/
+
+    function _assertInitializedEvent(VmSafe.EthGetLogs memory log) internal pure {
+        assertEq(log.topics[0], Initializable.Initialized.selector);
+        assertEq(log.data,      abi.encode(1));
     }
 
     function _assertIntegrationSetEvent(VmSafe.EthGetLogs memory log, bytes32 integrationId) internal view {
