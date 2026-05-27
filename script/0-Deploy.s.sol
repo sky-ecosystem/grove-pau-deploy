@@ -6,8 +6,7 @@ import { Script, stdJson } from "../lib/forge-std/src/Script.sol";
 
 import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 
-import { AccessControls } from "../lib/diamond-pau/src/AccessControls.sol";
-import { Controller }     from "../lib/diamond-pau/src/Controller.sol";
+import { PAUFactory } from "../lib/diamond-pau/src/PAUFactory.sol";
 
 contract DeployAccessControlsAndController is Script {
 
@@ -27,24 +26,23 @@ contract DeployAccessControlsAndController is Script {
 
         require(block.chainid == config.readUint(".chainId"), "DeployAccessControlsAndController/Invalid chain ID");
 
+        PAUFactory pauFactory = PAUFactory(config.readAddress(".pauFactory"));
+
         vm.startBroadcast();
 
         // Step 1: Deploy AccessControls contract.
         //         Deployer as the temporary admin to run configuration script.
-        address accessControls = address(new AccessControls({
-            admin: config.readAddress(".deployer")
-        }));
+        address accessControls = pauFactory.deployAccessControls(config.readAddress(".deployer"));
 
         console2.log("AccessControls deployed at: ", accessControls);
 
         // Step 2: Deploy Controller contract.
 
-        address controller = address(new Controller({
-            accessControls_ : accessControls,
-            beacon_         : config.readAddress(".beacon"),
-            proxy_          : config.readAddress(".proxy"),
-            rateLimits_     : config.readAddress(".rateLimits")
-        }));
+        address controller = pauFactory.deployController({
+            accessControls : accessControls,
+            proxy          : config.readAddress(".proxy"),
+            rateLimits     : config.readAddress(".rateLimits")
+        });
 
         console2.log("Controller deployed at: ", controller);
 
