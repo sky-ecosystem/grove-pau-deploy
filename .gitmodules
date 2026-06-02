@@ -10,3 +10,6 @@
 [submodule "lib/diamond-pau"]
 	path = lib/diamond-pau
 	url = https://github.com/sky-ecosystem/diamond-pau
+[submodule "lib/pau-administered-agent"]
+	path = lib/pau-administered-agent
+	url = https://github.com/sky-ecosystem/pau-administered-agent.git

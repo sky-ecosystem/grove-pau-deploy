@@ -8,6 +8,8 @@ import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 
 import { Ethereum } from "../lib/grove-address-registry/src/Ethereum.sol";
 
+import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
+
 import { IMainnetControllerFull } from "../lib/diamond-pau/test/interfaces/IMainnetControllerFull.sol";
 
 interface IOldMainnetControllerLike {
@@ -31,39 +33,22 @@ interface IOldMainnetControllerLike {
 
 }
 
+interface IAccessControlsLike {
+
+    function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
+
+    function grantRole(bytes32 role, address account) external;
+
+    function revokeRole(bytes32 role, address account) external;
+
+}
+
 contract ConfigureController is Script {
 
     using stdJson     for string;
     using ScriptTools for string;
 
-    struct IntegrationIds {
-        bytes32 aaveFacet;
-        bytes32 basinFacet;
-        bytes32 cctpFacet;
-        bytes32 centrifugeFacet;
-        bytes32 curveFacet;
-        bytes32 daiUsdsFacet;
-        bytes32 erc4626Facet;
-        bytes32 erc7540Facet;
-        bytes32 ethenaFacet;
-        bytes32 farmFacet;
-        bytes32 layerZeroFacet;
-        bytes32 mapleFacet;
-        bytes32 merklFacet;
-        bytes32 otcFacet;
-        bytes32 pendleFacet;
-        bytes32 psmFacet;
-        bytes32 psm3Facet;
-        bytes32 sparkVaultFacet;
-        bytes32 superstateFacet;
-        bytes32 transferAssetFacet;
-        bytes32 uniswapV3Facet;
-        bytes32 uniswapV4Facet;
-        bytes32 usdsFacet;
-        bytes32 weethFacet;
-        bytes32 wrapProxyETHFacet;
-        bytes32 wstethFacet;
-    }
+    bytes32 internal constant ALLOCATOR_ROLE = keccak256("ALLOCATOR_ROLE");
 
     address internal constant UNISWAP_V3_DAI_USDC_POOL  = 0x6c6Bc977E13Df9b0de53b251522280BB72383700;
     address internal constant UNISWAP_V3_USDC_USDT_POOL = 0x3416cF6C708Da44DB2624D63ea0AAef7113527C6;
@@ -84,35 +69,68 @@ contract ConfigureController is Script {
 
         require(block.chainid == config.readUint(".chainId"), "ConfigureController/invalid-chain-id");
 
+        address admin = config.readAddress(".admin");
+
+        require(admin != msg.sender, "ConfigureController/invalid-admin-and-deployer");
+
         controller    = IMainnetControllerFull(config.readAddress(".controller"));
         oldController = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER);
 
+        IAccessControlsLike accessControls = IAccessControlsLike(controller.accessControls());
+
         vm.startBroadcast();
+
+        address deployer = msg.sender;
 
         // Step 1: Update integrations.
 
-        _updateIntegrations(config);
+        _updateIntegrations();
 
         console2.log("Integrations updated");
 
         // Step 2: Migrate max exchange rates.
 
-        _migrateERC4626MaxExchangeRates(Ethereum.SUSDS);
-        _migrateERC4626MaxExchangeRates(Ethereum.SUSDE);
+        _copyERC4626MaxExchangeRate(Ethereum.SUSDS);
+        _copyERC4626MaxExchangeRate(Ethereum.SUSDE);
 
-        console2.log("Max exchange rates migrated");
+        console2.log("Max exchange rates copied");
 
         // Step 3: Migrate UniswapV3 pools
 
-        _migrateUniswapV3Pool(UNISWAP_V3_DAI_USDC_POOL);
-        _migrateUniswapV3Pool(UNISWAP_V3_USDC_USDT_POOL);
+        _copyUniswapV3PoolConfig(UNISWAP_V3_DAI_USDC_POOL);
+        _copyUniswapV3PoolConfig(UNISWAP_V3_USDC_USDT_POOL);
 
-        console2.log("UniswapV3 pools migrated");
+        console2.log("UniswapV3 pools copied");
+
+        // Step 4: Grant ALLOCATOR_ROLE to administeredAgent.
+
+        address administeredAgent = config.readAddress(".administeredAgent");
+
+        accessControls.grantRole(ALLOCATOR_ROLE, administeredAgent);
+
+        // Step 5: Transfer DEFAULT_ADMIN_ROLE to admin and revoke from deployer.
+
+        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(),  admin);
+        accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), deployer);
+
+        // Step 6: Add admins, actors and grantors to administeredAgent.
+
+        IAdministeredAgent(administeredAgent).addActor(config.readAddress(".allocator"));
+        IAdministeredAgent(administeredAgent).addActor(config.readAddress(".backstopAllocator"));
+        IAdministeredAgent(administeredAgent).addGrantor(config.readAddress(".allocatorAdmin"));
+        IAdministeredAgent(administeredAgent).addRevoker(config.readAddress(".allocatorAdmin"));
+
+        // Step 7: Add admin to administeredAgent and remove deployer.
+
+        IAdministeredAgent(administeredAgent).addAdmin(admin);
+        IAdministeredAgent(administeredAgent).removeAdmin(deployer);
+
+        console2.log("AccessControls and AdministeredAgent roles configured and transferred");
 
         vm.stopBroadcast();
     }
 
-    function _migrateERC4626MaxExchangeRates(address vault) internal {
+    function _copyERC4626MaxExchangeRate(address vault) internal {
         uint256 oldRate = oldController.maxExchangeRates(vault);
         
         controller.erc4626_setMaxExchangeRate(vault, controller.erc4626_EXCHANGE_RATE_PRECISION(), oldRate);
@@ -123,12 +141,12 @@ contract ConfigureController is Script {
         );
     }
 
-    function _migrateUniswapV3Pool(address pool) internal {
-        // Step 1: Migrate max slippages.
+    function _copyUniswapV3PoolConfig(address pool) internal {
+        // Step 1: Copy max slippages.
 
         controller.uniswapV3_setMaxSlippage(pool, oldController.maxSlippages(pool));
 
-        // Step 2: Migrate pool params.
+        // Step 2: Copy pool params.
 
         IOldMainnetControllerLike.UniswapV3PoolParams memory oldPoolParams = oldController.uniswapV3PoolParams(pool);
 
@@ -138,74 +156,15 @@ contract ConfigureController is Script {
         controller.uniswapV3_setTWAPSecondsAgo(pool,          oldPoolParams.twapSecondsAgo);
     }
 
-    function _updateIntegrations(string memory config) internal {
-        IntegrationIds memory allIntegrationIds = _readIntegrationIds(config);
+    function _updateIntegrations() internal {
+        bytes32[] memory integrationIds = new bytes32[](4);
 
-        bytes32[] memory integrationIds = new bytes32[](config.readUint(".integrationIds.length"));
-
-        uint256 i;
-
-        if (allIntegrationIds.aaveFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.aaveFacet;
-        if (allIntegrationIds.basinFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.basinFacet;
-        if (allIntegrationIds.cctpFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.cctpFacet;
-        if (allIntegrationIds.centrifugeFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.centrifugeFacet;
-        if (allIntegrationIds.curveFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.curveFacet;
-        if (allIntegrationIds.daiUsdsFacet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.daiUsdsFacet;
-        if (allIntegrationIds.erc4626Facet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.erc4626Facet;
-        if (allIntegrationIds.erc7540Facet       != bytes32(0)) integrationIds[i++] = allIntegrationIds.erc7540Facet;
-        if (allIntegrationIds.ethenaFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.ethenaFacet;
-        if (allIntegrationIds.farmFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.farmFacet;
-        if (allIntegrationIds.layerZeroFacet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.layerZeroFacet;
-        if (allIntegrationIds.mapleFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.mapleFacet;
-        if (allIntegrationIds.merklFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.merklFacet;
-        if (allIntegrationIds.otcFacet           != bytes32(0)) integrationIds[i++] = allIntegrationIds.otcFacet;
-        if (allIntegrationIds.pendleFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.pendleFacet;
-        if (allIntegrationIds.psmFacet           != bytes32(0)) integrationIds[i++] = allIntegrationIds.psmFacet;
-        if (allIntegrationIds.psm3Facet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.psm3Facet;
-        if (allIntegrationIds.sparkVaultFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.sparkVaultFacet;
-        if (allIntegrationIds.superstateFacet    != bytes32(0)) integrationIds[i++] = allIntegrationIds.superstateFacet;
-        if (allIntegrationIds.transferAssetFacet != bytes32(0)) integrationIds[i++] = allIntegrationIds.transferAssetFacet;
-        if (allIntegrationIds.uniswapV3Facet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.uniswapV3Facet;
-        if (allIntegrationIds.uniswapV4Facet     != bytes32(0)) integrationIds[i++] = allIntegrationIds.uniswapV4Facet;
-        if (allIntegrationIds.usdsFacet          != bytes32(0)) integrationIds[i++] = allIntegrationIds.usdsFacet;
-        if (allIntegrationIds.weethFacet         != bytes32(0)) integrationIds[i++] = allIntegrationIds.weethFacet;
-        if (allIntegrationIds.wrapProxyETHFacet  != bytes32(0)) integrationIds[i++] = allIntegrationIds.wrapProxyETHFacet;
-        if (allIntegrationIds.wstethFacet        != bytes32(0)) integrationIds[i++] = allIntegrationIds.wstethFacet;
-
-        require(i == config.readUint(".integrationIds.length"), "ConfigureController/invalid-number-of-facets");
+        integrationIds[0] = "BASIN_FACET";
+        integrationIds[1] = "ERC4626_FACET";
+        integrationIds[2] = "MAPLE_FACET";
+        integrationIds[3] = "UNISWAP_V3_FACET";
 
         controller.updateIntegrations(integrationIds);
-    }
-
-    function _readIntegrationIds(
-        string memory config
-    ) internal pure returns (IntegrationIds memory integrationIds) {
-        integrationIds.aaveFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.aaveFacet")));
-        integrationIds.basinFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.basinFacet")));
-        integrationIds.cctpFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.cctpFacet")));
-        integrationIds.centrifugeFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.centrifugeFacet")));
-        integrationIds.curveFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.curveFacet")));
-        integrationIds.daiUsdsFacet       = bytes32(abi.encodePacked(config.readString(".integrationIds.daiUsdsFacet")));
-        integrationIds.erc4626Facet       = bytes32(abi.encodePacked(config.readString(".integrationIds.erc4626Facet")));
-        integrationIds.erc7540Facet       = bytes32(abi.encodePacked(config.readString(".integrationIds.erc7540Facet")));
-        integrationIds.ethenaFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.ethenaFacet")));
-        integrationIds.farmFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.farmFacet")));
-        integrationIds.layerZeroFacet     = bytes32(abi.encodePacked(config.readString(".integrationIds.layerZeroFacet")));
-        integrationIds.mapleFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.mapleFacet")));
-        integrationIds.merklFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.merklFacet")));
-        integrationIds.otcFacet           = bytes32(abi.encodePacked(config.readString(".integrationIds.otcFacet")));
-        integrationIds.pendleFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.pendleFacet")));
-        integrationIds.psmFacet           = bytes32(abi.encodePacked(config.readString(".integrationIds.psmFacet")));
-        integrationIds.psm3Facet          = bytes32(abi.encodePacked(config.readString(".integrationIds.psm3Facet")));
-        integrationIds.sparkVaultFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.sparkVaultFacet")));
-        integrationIds.superstateFacet    = bytes32(abi.encodePacked(config.readString(".integrationIds.superstateFacet")));
-        integrationIds.transferAssetFacet = bytes32(abi.encodePacked(config.readString(".integrationIds.transferAssetFacet")));
-        integrationIds.uniswapV3Facet     = bytes32(abi.encodePacked(config.readString(".integrationIds.uniswapV3Facet")));
-        integrationIds.uniswapV4Facet     = bytes32(abi.encodePacked(config.readString(".integrationIds.uniswapV4Facet")));
-        integrationIds.usdsFacet          = bytes32(abi.encodePacked(config.readString(".integrationIds.usdsFacet")));
-        integrationIds.weethFacet         = bytes32(abi.encodePacked(config.readString(".integrationIds.weethFacet")));
-        integrationIds.wrapProxyETHFacet  = bytes32(abi.encodePacked(config.readString(".integrationIds.wrapProxyETHFacet")));
-        integrationIds.wstethFacet        = bytes32(abi.encodePacked(config.readString(".integrationIds.wstethFacet")));
     }
 
 }

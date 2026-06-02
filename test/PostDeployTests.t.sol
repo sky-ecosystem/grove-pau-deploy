@@ -16,6 +16,8 @@ import { IUniswapV3Facet } from "../lib/diamond-pau/src/facets/uniswap-v3/IUnisw
 
 import { Ethereum } from "../lib/grove-address-registry/src/Ethereum.sol";
 
+import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
+
 import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
 
 interface IOldMainnetControllerLike {
@@ -42,13 +44,15 @@ interface IOldMainnetControllerLike {
 contract PostDeployTests is PostDeployTestBase {
 
     // Paste from script output.
-    address internal constant ACCESS_CONTROLS = 0x0000000000000000000000000000000000000000;
-    address internal constant CONTROLLER      = 0x0000000000000000000000000000000000000000;
-    address internal constant DEPLOYER        = 0x0000000000000000000000000000000000000000;
+    address internal constant ACCESS_CONTROLS    = 0x0000000000000000000000000000000000000000;
+    address internal constant ADMINISTERED_AGENT = 0x0000000000000000000000000000000000000000;
+    address internal constant CONTROLLER         = 0x0000000000000000000000000000000000000000;
+    address internal constant DEPLOYER           = 0x0000000000000000000000000000000000000000;
 
     // Get from SKY
-    address internal constant BEACON      = 0x0000000000000000000000000000000000000000;
-    address internal constant PAU_FACTORY = 0x0000000000000000000000000000000000000000;
+    address internal constant ADMINISTERED_AGENT_FACTORY = 0x0000000000000000000000000000000000000000;
+    address internal constant BEACON                     = 0x0000000000000000000000000000000000000000;
+    address internal constant PAU_FACTORY                = 0x0000000000000000000000000000000000000000;
 
     address internal constant ADMIN              = Ethereum.GROVE_PROXY;
     address internal constant ALLOCATOR          = Ethereum.ALM_RELAYER;
@@ -61,15 +65,17 @@ contract PostDeployTests is PostDeployTestBase {
     address internal constant UNISWAP_V3_USDC_USDT_POOL = 0x3416cF6C708Da44DB2624D63ea0AAef7113527C6;
 
     AccessControls         internal accessControls;
+    IAdministeredAgent     internal administeredAgent;
     Beacon                 internal beacon;
     IMainnetControllerFull internal controller;
 
     function setUp() public {
         vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
 
-        accessControls = AccessControls(ACCESS_CONTROLS);
-        beacon         = Beacon(BEACON);
-        controller     = IMainnetControllerFull(payable(CONTROLLER));
+        accessControls    = AccessControls(ACCESS_CONTROLS);
+        administeredAgent = IAdministeredAgent(ADMINISTERED_AGENT);
+        beacon            = Beacon(BEACON);
+        controller        = IMainnetControllerFull(payable(CONTROLLER));
     }
 
     function _getBlock() internal pure returns (uint256) {
@@ -81,25 +87,12 @@ contract PostDeployTests is PostDeployTestBase {
        /*** AccessControls post deploy state                                                    ***/
        /*******************************************************************************************/
 
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       ALLOCATOR),          true);
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       BACKSTOP_ALLOCATOR), true);
-        assertEq(accessControls.hasRole(ALLOCATOR_ADMIN_ROLE, ALLOCATOR_ADMIN),    true);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE,   ADMIN),              true);
+        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, ADMIN),     true);
+        assertEq(accessControls.getRoleMemberCount(DEFAULT_ADMIN_ROLE), 1);
 
-        assertEq(accessControls.getRoleMemberCount(DEFAULT_ADMIN_ROLE),   1);
-        assertEq(accessControls.getRoleMemberCount(ALLOCATOR_ROLE),       2);
-        assertEq(accessControls.getRoleMemberCount(ALLOCATOR_ADMIN_ROLE), 1);
-
-        assertEq(accessControls.getRoleAdmin(ALLOCATOR_ROLE), ALLOCATOR_ADMIN_ROLE); // via setRoleAdmin.
-
-        // DEPLOYER/PAU_FACTORY has no roles on AccessControls
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       DEPLOYER), false);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE,   DEPLOYER), false);
-        assertEq(accessControls.hasRole(ALLOCATOR_ADMIN_ROLE, DEPLOYER), false);
-
-        assertEq(accessControls.hasRole(ALLOCATOR_ROLE,       PAU_FACTORY), false);
-        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE,   PAU_FACTORY), false);
-        assertEq(accessControls.hasRole(ALLOCATOR_ADMIN_ROLE, PAU_FACTORY), false);
+        // DEPLOYER/PAU_FACTORY has no roles on AccessControls.
+        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, DEPLOYER),    false);
+        assertEq(accessControls.hasRole(DEFAULT_ADMIN_ROLE, PAU_FACTORY), false);
 
        /*******************************************************************************************/
        /*** Controller post deploy state                                                        ***/
@@ -117,10 +110,10 @@ contract PostDeployTests is PostDeployTestBase {
 
         assertEq(integrations.length, 4);
 
-        assertEq(integrations[0].id, bytes32(keccak256(abi.encodePacked("BASIN_FACET"))));
-        assertEq(integrations[1].id, bytes32(keccak256(abi.encodePacked("OTC_FACET"))));
-        assertEq(integrations[2].id, bytes32(keccak256(abi.encodePacked("ERC4626_FACET"))));
-        assertEq(integrations[3].id, bytes32(keccak256(abi.encodePacked("UNISWAP_V3_FACET"))));
+        assertEq(integrations[0].id, bytes32(abi.encodePacked("BASIN_FACET")));
+        assertEq(integrations[1].id, bytes32(abi.encodePacked("ERC4626_FACET")));
+        assertEq(integrations[2].id, bytes32(abi.encodePacked("MAPLE_FACET")));
+        assertEq(integrations[3].id, bytes32(abi.encodePacked("UNISWAP_V3_FACET")));
 
         _assertIntegration(integrations[0].id);
         _assertIntegration(integrations[1].id);
@@ -128,12 +121,27 @@ contract PostDeployTests is PostDeployTestBase {
         _assertIntegration(integrations[3].id);
 
         // Configurations: setMaxExchangeRate.
-        _assertMaxExchangeRate(Ethereum.SUSDS);
-        _assertMaxExchangeRate(Ethereum.SUSDE);
+        _assertMaxExchangeRateCopy(Ethereum.SUSDS);
+        _assertMaxExchangeRateCopy(Ethereum.SUSDE);
 
-        // Configurations: migrate UniswapV3 pools.
-        _assertUniswapV3PoolMigration(UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3PoolMigration(UNISWAP_V3_USDC_USDT_POOL);
+        // Configurations: copy UniswapV3 pools config.
+        _assertUniswapV3PoolConfigCopy(UNISWAP_V3_DAI_USDC_POOL);
+        _assertUniswapV3PoolConfigCopy(UNISWAP_V3_USDC_USDT_POOL);
+
+        /******************************************************************************************/
+        /*** AdministeredAgent post deploy state                                                ***/
+        /******************************************************************************************/
+
+        assertEq(administeredAgent.adminCount(),   1);
+        assertEq(administeredAgent.actorCount(),   2);
+        assertEq(administeredAgent.grantorCount(), 1);
+        assertEq(administeredAgent.revokerCount(), 1);
+
+        assertEq(administeredAgent.getAdmin(0),   ADMIN);
+        assertEq(administeredAgent.getActor(0),   ALLOCATOR);
+        assertEq(administeredAgent.getActor(1),   BACKSTOP_ALLOCATOR);
+        assertEq(administeredAgent.getGrantor(0), ALLOCATOR_ADMIN);
+        assertEq(administeredAgent.getRevoker(0), ALLOCATOR_ADMIN);
     }
 
     function test_postDeployEvents() external {
@@ -143,7 +151,7 @@ contract PostDeployTests is PostDeployTestBase {
 
         VmSafe.EthGetLogs[] memory accessControlsAllLogs = _getEvents(block.chainid, ACCESS_CONTROLS, "");
 
-        assertEq(accessControlsAllLogs.length, 7);
+        assertEq(accessControlsAllLogs.length, 4);
 
         // RoleGranted(DEFAULT_ADMIN_ROLE, DEPLOYER, PAU_FACTORY) from PAUFactory.deployAccessControls: AccessControls constructor.
         assertEq(accessControlsAllLogs[0].topics[0],             IAccessControl.RoleGranted.selector);
@@ -151,44 +159,25 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(_toAddress(accessControlsAllLogs[0].topics[2]), DEPLOYER);
         assertEq(_toAddress(accessControlsAllLogs[0].topics[3]), PAU_FACTORY);
 
-        // RoleGranted(ALLOCATOR_ROLE, ALLOCATOR, DEPLOYER) from TransferRoles: ALLOCATOR_ROLE grant.
+        // RoleGranted(ALLOCATOR_ROLE, ADMINISTERED_AGENT, DEPLOYER) from ConfigureController: ALLOCATOR_ROLE grant.
         assertEq(accessControlsAllLogs[1].topics[0],             IAccessControl.RoleGranted.selector);
         assertEq(accessControlsAllLogs[1].topics[1],             ALLOCATOR_ROLE);
-        assertEq(_toAddress(accessControlsAllLogs[1].topics[2]), ALLOCATOR);
+        assertEq(_toAddress(accessControlsAllLogs[1].topics[2]), ADMINISTERED_AGENT);
         assertEq(_toAddress(accessControlsAllLogs[1].topics[3]), DEPLOYER);
 
-        // RoleGranted(ALLOCATOR_ROLE, BACKSTOP_ALLOCATOR, DEPLOYER) from TransferRoles: ALLOCATOR_ROLE grant.
+        // RoleGranted(DEFAULT_ADMIN_ROLE, ADMIN, DEPLOYER) from ConfigureController: DEFAULT_ADMIN_ROLE grant.
+        // Role transfers from deployer to admin.
         assertEq(accessControlsAllLogs[2].topics[0],             IAccessControl.RoleGranted.selector);
-        assertEq(accessControlsAllLogs[2].topics[1],             ALLOCATOR_ROLE);
-        assertEq(_toAddress(accessControlsAllLogs[2].topics[2]), BACKSTOP_ALLOCATOR);
+        assertEq(accessControlsAllLogs[2].topics[1],             DEFAULT_ADMIN_ROLE);
+        assertEq(_toAddress(accessControlsAllLogs[2].topics[2]), ADMIN);
         assertEq(_toAddress(accessControlsAllLogs[2].topics[3]), DEPLOYER);
 
-        // RoleGranted(ALLOCATOR_ADMIN_ROLE, ALLOCATOR_ADMIN, DEPLOYER) from TransferRoles: ALLOCATOR_ADMIN_ROLE grant.
-        assertEq(accessControlsAllLogs[3].topics[0],             IAccessControl.RoleGranted.selector);
-        assertEq(accessControlsAllLogs[3].topics[1],             ALLOCATOR_ADMIN_ROLE);
-        assertEq(_toAddress(accessControlsAllLogs[3].topics[2]), ALLOCATOR_ADMIN);
-        assertEq(_toAddress(accessControlsAllLogs[3].topics[3]), DEPLOYER);
-
-        // RoleAdminChanged(ALLOCATOR_ROLE, DEFAULT_ADMIN_ROLE, ALLOCATOR_ADMIN_ROLE) from TransferRoles: setRoleAdmin.
-        // From AccessControls.setRoleAdmin.
-        assertEq(accessControlsAllLogs[4].topics[0], IAccessControl.RoleAdminChanged.selector);
-        assertEq(accessControlsAllLogs[4].topics[1], ALLOCATOR_ROLE);
-        assertEq(accessControlsAllLogs[4].topics[2], DEFAULT_ADMIN_ROLE);
-        assertEq(accessControlsAllLogs[4].topics[3], ALLOCATOR_ADMIN_ROLE);
-
-        // RoleGranted(DEFAULT_ADMIN_ROLE, ADMIN, DEPLOYER) from TransferRoles: DEFAULT_ADMIN_ROLE grant.
-        // Role transfers from deployer to admin.
-        assertEq(accessControlsAllLogs[5].topics[0],             IAccessControl.RoleGranted.selector);
-        assertEq(accessControlsAllLogs[5].topics[1],             DEFAULT_ADMIN_ROLE);
-        assertEq(_toAddress(accessControlsAllLogs[5].topics[2]), ADMIN);
-        assertEq(_toAddress(accessControlsAllLogs[5].topics[3]), DEPLOYER);
-
-        // RoleRevoked(DEFAULT_ADMIN_ROLE, DEPLOYER, DEPLOYER) from TransferRoles: DEFAULT_ADMIN_ROLE revoke.
+        // RoleRevoked(DEFAULT_ADMIN_ROLE, DEPLOYER, DEPLOYER) from ConfigureController: DEFAULT_ADMIN_ROLE revoke.
         // Role revoked from deployer.
-        assertEq(accessControlsAllLogs[6].topics[0],             IAccessControl.RoleRevoked.selector);
-        assertEq(accessControlsAllLogs[6].topics[1],             DEFAULT_ADMIN_ROLE);
-        assertEq(_toAddress(accessControlsAllLogs[6].topics[2]), DEPLOYER);
-        assertEq(_toAddress(accessControlsAllLogs[6].topics[3]), DEPLOYER);
+        assertEq(accessControlsAllLogs[3].topics[0],             IAccessControl.RoleRevoked.selector);
+        assertEq(accessControlsAllLogs[3].topics[1],             DEFAULT_ADMIN_ROLE);
+        assertEq(_toAddress(accessControlsAllLogs[3].topics[2]), DEPLOYER);
+        assertEq(_toAddress(accessControlsAllLogs[3].topics[3]), DEPLOYER);
 
        /*******************************************************************************************/
        /*** Controller events                                                                   ***/
@@ -203,8 +192,8 @@ contract PostDeployTests is PostDeployTestBase {
 
         // IntegrationSet(integrationId, config) from ConfigureController: updateIntegrations.
         _assertIntegrationSetEvent(controllerAllLogs[1], bytes32(abi.encodePacked("BASIN_FACET")));
-        _assertIntegrationSetEvent(controllerAllLogs[2], bytes32(abi.encodePacked("OTC_FACET")));
-        _assertIntegrationSetEvent(controllerAllLogs[3], bytes32(abi.encodePacked("ERC4626_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[2], bytes32(abi.encodePacked("ERC4626_FACET")));
+        _assertIntegrationSetEvent(controllerAllLogs[3], bytes32(abi.encodePacked("MAPLE_FACET")));
         _assertIntegrationSetEvent(controllerAllLogs[4], bytes32(abi.encodePacked("UNISWAP_V3_FACET")));
 
         // ERC4626MaxExchangeRateSet(token, maxExchangeRate) from ConfigureController: setMaxExchangeRate.
@@ -223,6 +212,49 @@ contract PostDeployTests is PostDeployTestBase {
         _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[14], UNISWAP_V3_USDC_USDT_POOL);
         _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[15], UNISWAP_V3_USDC_USDT_POOL);
         _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[16],             UNISWAP_V3_USDC_USDT_POOL);
+
+       /*******************************************************************************************/
+       /*** AdministeredAgent events                                                            ***/
+       /*******************************************************************************************/
+
+        VmSafe.EthGetLogs[] memory administeredAgentAllLogs = _getEvents(block.chainid, ADMINISTERED_AGENT, "");
+
+        assertEq(administeredAgentAllLogs.length, 7);
+
+        // AdminAdded(DEPLOYER, ADMINISTERED_AGENT_FACTORY) from AdministeredAgent constructor.
+        assertEq(administeredAgentAllLogs[0].topics[0],             IAdministeredAgent.AdminAdded.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[0].topics[1]), DEPLOYER);
+        assertEq(_toAddress(administeredAgentAllLogs[0].topics[2]), ADMINISTERED_AGENT_FACTORY);
+
+        // ActorAdded(ALLOCATOR, DEPLOYER) from ConfigureController: addActor.
+        assertEq(administeredAgentAllLogs[1].topics[0],             IAdministeredAgent.ActorAdded.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[1].topics[1]), ALLOCATOR);
+        assertEq(_toAddress(administeredAgentAllLogs[1].topics[2]), DEPLOYER);
+
+        // ActorAdded(BACKSTOP_ALLOCATOR, DEPLOYER) from ConfigureController: addActor.
+        assertEq(administeredAgentAllLogs[2].topics[0],             IAdministeredAgent.ActorAdded.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[2].topics[1]), BACKSTOP_ALLOCATOR);
+        assertEq(_toAddress(administeredAgentAllLogs[2].topics[2]), DEPLOYER);
+
+        // GrantorAdded(ALLOCATOR_ADMIN, DEPLOYER) from ConfigureController: addGrantor.
+        assertEq(administeredAgentAllLogs[3].topics[0],             IAdministeredAgent.GrantorAdded.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[3].topics[1]), ALLOCATOR_ADMIN);
+        assertEq(_toAddress(administeredAgentAllLogs[3].topics[2]), DEPLOYER);
+
+        // RevokerAdded(ALLOCATOR_ADMIN, DEPLOYER) from ConfigureController: addRevoker.
+        assertEq(administeredAgentAllLogs[4].topics[0],             IAdministeredAgent.RevokerAdded.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[4].topics[1]), ALLOCATOR_ADMIN);
+        assertEq(_toAddress(administeredAgentAllLogs[4].topics[2]), DEPLOYER);
+
+        // AdminAdded(ADMIN, DEPLOYER) from ConfigureController: addAdmin.
+        assertEq(administeredAgentAllLogs[5].topics[0],             IAdministeredAgent.AdminAdded.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[5].topics[1]), ADMIN);
+        assertEq(_toAddress(administeredAgentAllLogs[5].topics[2]), DEPLOYER);
+
+        // AdminRemoved(DEPLOYER, DEPLOYER) from ConfigureController: removeAdmin.
+        assertEq(administeredAgentAllLogs[6].topics[0],             IAdministeredAgent.AdminRemoved.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[6].topics[1]), DEPLOYER);
+        assertEq(_toAddress(administeredAgentAllLogs[6].topics[2]), DEPLOYER);
     }
 
     /*******************************************************************************************/
@@ -242,13 +274,13 @@ contract PostDeployTests is PostDeployTestBase {
         }
     }
     
-    function _assertMaxExchangeRate(address token) internal view {
+    function _assertMaxExchangeRateCopy(address token) internal view {
         uint256 oldMaxExchangeRate = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER).maxExchangeRates(token);
 
         assertEq(controller.erc4626_getMaxExchangeRate(token), oldMaxExchangeRate);
     }
 
-    function _assertUniswapV3PoolMigration(address pool) internal view {
+    function _assertUniswapV3PoolConfigCopy(address pool) internal view {
         IOldMainnetControllerLike oldController = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER);
 
         IOldMainnetControllerLike.UniswapV3PoolParams memory oldPoolParams = oldController.uniswapV3PoolParams(pool);

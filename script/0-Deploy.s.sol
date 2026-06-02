@@ -8,6 +8,8 @@ import { ScriptTools } from "../lib/dss-test/src/ScriptTools.sol";
 
 import { PAUFactory } from "../lib/diamond-pau/src/PAUFactory.sol";
 
+import { AdministeredAgentFactory } from "../lib/pau-administered-agent/src/AdministeredAgentFactory.sol";
+
 contract DeployAccessControlsAndController is Script {
 
     using stdJson     for string;
@@ -28,11 +30,15 @@ contract DeployAccessControlsAndController is Script {
 
         PAUFactory pauFactory = PAUFactory(config.readAddress(".pauFactory"));
 
+        AdministeredAgentFactory administeredAgentFactory = AdministeredAgentFactory(config.readAddress(".administeredAgentFactory"));
+
         vm.startBroadcast();
+
+        address deployer = msg.sender;
 
         // Step 1: Deploy AccessControls contract.
         //         Deployer as the temporary admin to run configuration script.
-        address accessControls = pauFactory.deployAccessControls(config.readAddress(".deployer"));
+        address accessControls = pauFactory.deployAccessControls(deployer);
 
         console2.log("AccessControls deployed at: ", accessControls);
 
@@ -46,10 +52,17 @@ contract DeployAccessControlsAndController is Script {
 
         console2.log("Controller deployed at: ", controller);
 
+        // Step 3: Deploy AdministeredAgent contract.
+
+        address administeredAgent = administeredAgentFactory.deploy(deployer);
+
+        console2.log("AdministeredAgent deployed at: ", administeredAgent);
+
         vm.stopBroadcast();
 
-        ScriptTools.exportContract(fileSlug, "accessControls", address(accessControls));
-        ScriptTools.exportContract(fileSlug, "controller",     address(controller));
+        ScriptTools.exportContract(fileSlug, "accessControls",    address(accessControls));
+        ScriptTools.exportContract(fileSlug, "administeredAgent", address(administeredAgent));
+        ScriptTools.exportContract(fileSlug, "controller",        address(controller));
     }
 
 }

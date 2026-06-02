@@ -3,35 +3,10 @@
 
     "chainId": 1,
 
-    "controller": "0x0000000000000000000000000000000000000000",
-
-    "integrationIds": {
-        "length": 4,
-        "aaveFacet": "",
-        "basinFacet": "BASIN_FACET",
-        "cctpFacet": "",
-        "centrifugeFacet": "",
-        "curveFacet": "",
-        "daiUsdsFacet": "",
-        "erc4626Facet": "ERC4626_FACET",
-        "erc7540Facet": "",
-        "ethenaFacet": "",
-        "farmFacet": "",
-        "layerZeroFacet": "",
-        "mapleFacet": "MAPLE_FACET",
-        "merklFacet": "",
-        "otcFacet": "",
-        "pendleFacet": "",
-        "psmFacet": "",
-        "psm3Facet": "",
-        "sparkVaultFacet": "",
-        "superstateFacet": "",
-        "transferAssetFacet": "",
-        "uniswapV3Facet": "UNISWAP_V3_FACET",
-        "uniswapV4Facet": "",
-        "usdsFacet": "",
-        "weethFacet": "",
-        "wrapProxyETHFacet": "",
-        "wstethFacet": ""
-      }
+    "admin": "0x0000000000000000000000000000000000000000",
+    "administeredAgent": "0x0000000000000000000000000000000000000000",
+    "allocator": "0x0000000000000000000000000000000000000000",
+    "allocatorAdmin": "0x0000000000000000000000000000000000000000",
+    "backstopAllocator": "0x0000000000000000000000000000000000000000",
+    "controller": "0x0000000000000000000000000000000000000000"
 }
