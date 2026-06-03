@@ -44,15 +44,15 @@ interface IOldMainnetControllerLike {
 contract PostDeployTests is PostDeployTestBase {
 
     // Paste from script output.
-    address internal constant ACCESS_CONTROLS    = 0x0000000000000000000000000000000000000000;
-    address internal constant ADMINISTERED_AGENT = 0x0000000000000000000000000000000000000000;
-    address internal constant CONTROLLER         = 0x0000000000000000000000000000000000000000;
-    address internal constant DEPLOYER           = 0x0000000000000000000000000000000000000000;
+    address internal constant ACCESS_CONTROLS    = 0x6743675847fcBc54910a51B2fe560762c91E6e88;
+    address internal constant ADMINISTERED_AGENT = 0xEe38dB49D43ea7487E273007b2Db5d25CEE979c3;
+    address internal constant CONTROLLER         = 0x26F4F2db264352e5606e8785EA41a0133A8e4B06;
+    address internal constant DEPLOYER           = 0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d;
 
     // Get from SKY
-    address internal constant ADMINISTERED_AGENT_FACTORY = 0x0000000000000000000000000000000000000000;
-    address internal constant BEACON                     = 0x0000000000000000000000000000000000000000;
-    address internal constant PAU_FACTORY                = 0x0000000000000000000000000000000000000000;
+    address internal constant ADMINISTERED_AGENT_FACTORY = 0x59d88F37680aE0ACCbBd34A965DA22a9ae344d0d;
+    address internal constant BEACON                     = 0x829dC2b7E94B1954F0764E573f2E0d45Afa28199;
+    address internal constant PAU_FACTORY                = 0x69A5d548830AC2A4Ba90A44a2C75BDA71f97fc66;
 
     address internal constant ADMIN              = Ethereum.GROVE_PROXY;
     address internal constant ALLOCATOR          = Ethereum.ALM_RELAYER;
@@ -79,7 +79,7 @@ contract PostDeployTests is PostDeployTestBase {
     }
 
     function _getBlock() internal pure returns (uint256) {
-        return 25130165;
+        return 25236408; // Jun-03-2026 10:56:59 AM +UTC : After scripts execution.
     }
 
     function test_deployState() external view {
@@ -185,7 +185,7 @@ contract PostDeployTests is PostDeployTestBase {
 
         VmSafe.EthGetLogs[] memory controllerAllLogs = _getEvents(block.chainid, CONTROLLER, "");
 
-        assertEq(controllerAllLogs.length, 17);
+        assertEq(controllerAllLogs.length, 7);
 
         // Initialized(1) from Controller constructor.
         _assertInitializedEvent(controllerAllLogs[0]);
@@ -201,17 +201,17 @@ contract PostDeployTests is PostDeployTestBase {
         _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[6], Ethereum.SUSDE);
 
         // UniswapV3 Migration events.
-        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[7],                 UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[8],            UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[9],  UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[10], UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[11],             UNISWAP_V3_DAI_USDC_POOL);
+        // _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[7],                 UNISWAP_V3_DAI_USDC_POOL);
+        // _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[8],            UNISWAP_V3_DAI_USDC_POOL);
+        // _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[9],  UNISWAP_V3_DAI_USDC_POOL);
+        // _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[10], UNISWAP_V3_DAI_USDC_POOL);
+        // _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[11],             UNISWAP_V3_DAI_USDC_POOL);
 
-        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[12],                UNISWAP_V3_USDC_USDT_POOL);
-        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[13],           UNISWAP_V3_USDC_USDT_POOL);
-        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[14], UNISWAP_V3_USDC_USDT_POOL);
-        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[15], UNISWAP_V3_USDC_USDT_POOL);
-        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[16],             UNISWAP_V3_USDC_USDT_POOL);
+        // _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[12],                UNISWAP_V3_USDC_USDT_POOL);
+        // _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[13],           UNISWAP_V3_USDC_USDT_POOL);
+        // _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[14], UNISWAP_V3_USDC_USDT_POOL);
+        // _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[15], UNISWAP_V3_USDC_USDT_POOL);
+        // _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[16],             UNISWAP_V3_USDC_USDT_POOL);
 
        /*******************************************************************************************/
        /*** AdministeredAgent events                                                            ***/

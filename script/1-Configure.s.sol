@@ -96,9 +96,9 @@ contract ConfigureController is Script {
         console2.log("Max exchange rates copied");
 
         // Step 3: Migrate UniswapV3 pools
-
-        _copyUniswapV3PoolConfig(UNISWAP_V3_DAI_USDC_POOL);
-        _copyUniswapV3PoolConfig(UNISWAP_V3_USDC_USDT_POOL);
+        // NOTE : SKIPPED because these pools are not returning a valid config from old controller.
+        // _copyUniswapV3PoolConfig(UNISWAP_V3_DAI_USDC_POOL);
+        // _copyUniswapV3PoolConfig(UNISWAP_V3_USDC_USDT_POOL);
 
         console2.log("UniswapV3 pools copied");
 

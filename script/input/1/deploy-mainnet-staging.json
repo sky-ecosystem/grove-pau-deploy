@@ -1,0 +1,9 @@
+{
+    "_info": "Grove Mainnet Staging controller deployment.",
+
+    "chainId": 1,
+    "administeredAgentFactory": "0x59d88F37680aE0ACCbBd34A965DA22a9ae344d0d",
+    "pauFactory": "0x69A5d548830AC2A4Ba90A44a2C75BDA71f97fc66",
+    "proxy": "0x491EDFB0B8b608044e227225C715981a30F3A44E",
+    "rateLimits": "0x5F5cfCB8a463868E37Ab27B5eFF3ba02112dF19a"
+}
