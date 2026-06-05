@@ -1,8 +1,0 @@
-{
-    "_info": "Grove Mainnet Staging controller configuration.",
-
-    "chainId": 1,
-
-    "administeredAgent": "0x0f7ca6616CC38132530dC4695778a54de42C21F4",
-    "controller": "0x0DD65461610Fe5b65cE50A870B10ED0F3d24d8C2"
-}
