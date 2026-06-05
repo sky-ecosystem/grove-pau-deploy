@@ -54,15 +54,13 @@ contract PostDeployTests is PostDeployTestBase {
     address internal constant BEACON                     = 0x829dC2b7E94B1954F0764E573f2E0d45Afa28199;
     address internal constant PAU_FACTORY                = 0x69A5d548830AC2A4Ba90A44a2C75BDA71f97fc66;
 
-    address internal constant ADMIN              = Ethereum.GROVE_PROXY;
-    address internal constant ALLOCATOR          = Ethereum.ALM_RELAYER;
-    address internal constant ALLOCATOR_ADMIN    = Ethereum.ALM_FREEZER;
-    address internal constant ALM_PROXY          = Ethereum.ALM_PROXY;
-    address internal constant BACKSTOP_ALLOCATOR = Ethereum.GROVE_SECONDARY_RELAYER_OPERATOR;
-    address internal constant RATE_LIMITS        = Ethereum.ALM_RATE_LIMITS;
-
-    address internal constant UNISWAP_V3_DAI_USDC_POOL  = 0x6c6Bc977E13Df9b0de53b251522280BB72383700;
-    address internal constant UNISWAP_V3_USDC_USDT_POOL = 0x3416cF6C708Da44DB2624D63ea0AAef7113527C6;
+    address internal constant ADMIN       = Ethereum.GROVE_PROXY;
+    address internal constant ALLOCATOR_1 = Ethereum.ALM_RELAYER;
+    address internal constant ALLOCATOR_2 = Ethereum.GROVE_PRIMARY_RELAYER_OPERATOR;
+    address internal constant ALLOCATOR_3 = Ethereum.GROVE_SECONDARY_RELAYER_OPERATOR;
+    address internal constant REVOKER     = Ethereum.ALM_FREEZER;
+    address internal constant ALM_PROXY   = Ethereum.ALM_PROXY;
+    address internal constant RATE_LIMITS = Ethereum.ALM_RATE_LIMITS;
 
     AccessControls         internal accessControls;
     IAdministeredAgent     internal administeredAgent;
@@ -121,27 +119,24 @@ contract PostDeployTests is PostDeployTestBase {
         _assertIntegration(integrations[3].id);
 
         // Configurations: setMaxExchangeRate.
-        _assertMaxExchangeRateCopy(Ethereum.SUSDS);
-        _assertMaxExchangeRateCopy(Ethereum.SUSDE);
+        _assertMaxExchangeRateCopy(Ethereum.MAPLE_SYRUP_USDC);
 
-        // Configurations: copy UniswapV3 pools config.
-        _assertUniswapV3PoolConfigCopy(UNISWAP_V3_DAI_USDC_POOL);
-        _assertUniswapV3PoolConfigCopy(UNISWAP_V3_USDC_USDT_POOL);
+        // Configurations: copy UniswapV3 pool config.
+        _assertUniswapV3PoolConfigCopy(Ethereum.UNISWAP_V3_AUSD_USDC);
 
         /******************************************************************************************/
         /*** AdministeredAgent post deploy state                                                ***/
         /******************************************************************************************/
 
         assertEq(administeredAgent.adminCount(),   1);
-        assertEq(administeredAgent.actorCount(),   2);
-        assertEq(administeredAgent.grantorCount(), 1);
+        assertEq(administeredAgent.actorCount(),   3);
         assertEq(administeredAgent.revokerCount(), 1);
 
         assertEq(administeredAgent.getAdmin(0),   ADMIN);
-        assertEq(administeredAgent.getActor(0),   ALLOCATOR);
-        assertEq(administeredAgent.getActor(1),   BACKSTOP_ALLOCATOR);
-        assertEq(administeredAgent.getGrantor(0), ALLOCATOR_ADMIN);
-        assertEq(administeredAgent.getRevoker(0), ALLOCATOR_ADMIN);
+        assertEq(administeredAgent.getActor(0),   ALLOCATOR_1);
+        assertEq(administeredAgent.getActor(1),   ALLOCATOR_2);
+        assertEq(administeredAgent.getActor(2),   ALLOCATOR_3);
+        assertEq(administeredAgent.getRevoker(0), REVOKER);
     }
 
     function test_postDeployEvents() external {
@@ -185,7 +180,7 @@ contract PostDeployTests is PostDeployTestBase {
 
         VmSafe.EthGetLogs[] memory controllerAllLogs = _getEvents(block.chainid, CONTROLLER, "");
 
-        assertEq(controllerAllLogs.length, 7);
+        assertEq(controllerAllLogs.length, 11);
 
         // Initialized(1) from Controller constructor.
         _assertInitializedEvent(controllerAllLogs[0]);
@@ -197,21 +192,14 @@ contract PostDeployTests is PostDeployTestBase {
         _assertIntegrationSetEvent(controllerAllLogs[4], bytes32(abi.encodePacked("UNISWAP_V3_FACET")));
 
         // ERC4626MaxExchangeRateSet(token, maxExchangeRate) from ConfigureController: setMaxExchangeRate.
-        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[5], Ethereum.SUSDS);
-        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[6], Ethereum.SUSDE);
+        _assertERC4626MaxExchangeRateSetEvent(controllerAllLogs[5], Ethereum.MAPLE_SYRUP_USDC);
 
-        // UniswapV3 Migration events.
-        // _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[7],                 UNISWAP_V3_DAI_USDC_POOL);
-        // _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[8],            UNISWAP_V3_DAI_USDC_POOL);
-        // _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[9],  UNISWAP_V3_DAI_USDC_POOL);
-        // _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[10], UNISWAP_V3_DAI_USDC_POOL);
-        // _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[11],             UNISWAP_V3_DAI_USDC_POOL);
-
-        // _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[12],                UNISWAP_V3_USDC_USDT_POOL);
-        // _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[13],           UNISWAP_V3_USDC_USDT_POOL);
-        // _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[14], UNISWAP_V3_USDC_USDT_POOL);
-        // _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[15], UNISWAP_V3_USDC_USDT_POOL);
-        // _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[16],             UNISWAP_V3_USDC_USDT_POOL);
+        // UniswapV3 pool config copy events.
+        _assertUniswapV3MaxSlippageSetEvent(controllerAllLogs[6],                 Ethereum.UNISWAP_V3_AUSD_USDC);
+        _assertUniswapV3PoolMaxTickDeltaSetEvent(controllerAllLogs[7],            Ethereum.UNISWAP_V3_AUSD_USDC);
+        _assertUniswapV3AddLiquidityLowerTickBoundSetEvent(controllerAllLogs[8],  Ethereum.UNISWAP_V3_AUSD_USDC);
+        _assertUniswapV3AddLiquidityUpperTickBoundSetEvent(controllerAllLogs[9], Ethereum.UNISWAP_V3_AUSD_USDC);
+        _assertUniswapV3TWAPSecondsAgoSetEvent(controllerAllLogs[10],             Ethereum.UNISWAP_V3_AUSD_USDC);
 
        /*******************************************************************************************/
        /*** AdministeredAgent events                                                            ***/
@@ -226,24 +214,24 @@ contract PostDeployTests is PostDeployTestBase {
         assertEq(_toAddress(administeredAgentAllLogs[0].topics[1]), DEPLOYER);
         assertEq(_toAddress(administeredAgentAllLogs[0].topics[2]), ADMINISTERED_AGENT_FACTORY);
 
-        // ActorAdded(ALLOCATOR, DEPLOYER) from ConfigureController: addActor.
+        // ActorAdded(ALLOCATOR_1, DEPLOYER) from ConfigureController: addActor.
         assertEq(administeredAgentAllLogs[1].topics[0],             IAdministeredAgent.ActorAdded.selector);
-        assertEq(_toAddress(administeredAgentAllLogs[1].topics[1]), ALLOCATOR);
+        assertEq(_toAddress(administeredAgentAllLogs[1].topics[1]), ALLOCATOR_1);
         assertEq(_toAddress(administeredAgentAllLogs[1].topics[2]), DEPLOYER);
 
-        // ActorAdded(BACKSTOP_ALLOCATOR, DEPLOYER) from ConfigureController: addActor.
+        // ActorAdded(ALLOCATOR_2, DEPLOYER) from ConfigureController: addActor.
         assertEq(administeredAgentAllLogs[2].topics[0],             IAdministeredAgent.ActorAdded.selector);
-        assertEq(_toAddress(administeredAgentAllLogs[2].topics[1]), BACKSTOP_ALLOCATOR);
+        assertEq(_toAddress(administeredAgentAllLogs[2].topics[1]), ALLOCATOR_2);
         assertEq(_toAddress(administeredAgentAllLogs[2].topics[2]), DEPLOYER);
 
-        // GrantorAdded(ALLOCATOR_ADMIN, DEPLOYER) from ConfigureController: addGrantor.
-        assertEq(administeredAgentAllLogs[3].topics[0],             IAdministeredAgent.GrantorAdded.selector);
-        assertEq(_toAddress(administeredAgentAllLogs[3].topics[1]), ALLOCATOR_ADMIN);
+        // ActorAdded(ALLOCATOR_3, DEPLOYER) from ConfigureController: addActor.
+        assertEq(administeredAgentAllLogs[3].topics[0],             IAdministeredAgent.ActorAdded.selector);
+        assertEq(_toAddress(administeredAgentAllLogs[3].topics[1]), ALLOCATOR_3);
         assertEq(_toAddress(administeredAgentAllLogs[3].topics[2]), DEPLOYER);
 
-        // RevokerAdded(ALLOCATOR_ADMIN, DEPLOYER) from ConfigureController: addRevoker.
+        // RevokerAdded(REVOKER, DEPLOYER) from ConfigureController: addRevoker.
         assertEq(administeredAgentAllLogs[4].topics[0],             IAdministeredAgent.RevokerAdded.selector);
-        assertEq(_toAddress(administeredAgentAllLogs[4].topics[1]), ALLOCATOR_ADMIN);
+        assertEq(_toAddress(administeredAgentAllLogs[4].topics[1]), REVOKER);
         assertEq(_toAddress(administeredAgentAllLogs[4].topics[2]), DEPLOYER);
 
         // AdminAdded(ADMIN, DEPLOYER) from ConfigureController: addAdmin.

@@ -50,9 +50,6 @@ contract ConfigureController is Script {
 
     bytes32 internal constant ALLOCATOR_ROLE = keccak256("ALLOCATOR_ROLE");
 
-    address internal constant UNISWAP_V3_DAI_USDC_POOL  = 0x6c6Bc977E13Df9b0de53b251522280BB72383700;
-    address internal constant UNISWAP_V3_USDC_USDT_POOL = 0x3416cF6C708Da44DB2624D63ea0AAef7113527C6;
-
     IMainnetControllerFull    internal controller;
     IOldMainnetControllerLike internal oldController;
 
@@ -69,10 +66,6 @@ contract ConfigureController is Script {
 
         require(block.chainid == config.readUint(".chainId"), "ConfigureController/invalid-chain-id");
 
-        address admin = config.readAddress(".admin");
-
-        require(admin != msg.sender, "ConfigureController/invalid-admin-and-deployer");
-
         controller    = IMainnetControllerFull(config.readAddress(".controller"));
         oldController = IOldMainnetControllerLike(Ethereum.ALM_CONTROLLER);
 
@@ -88,19 +81,17 @@ contract ConfigureController is Script {
 
         console2.log("Integrations updated");
 
-        // Step 2: Migrate max exchange rates.
+        // Step 2: Copy maple max exchange rate (MAPLE_SYRUP_USDC)
 
-        _copyERC4626MaxExchangeRate(Ethereum.SUSDS);
-        _copyERC4626MaxExchangeRate(Ethereum.SUSDE);
+        _copyERC4626MaxExchangeRate(Ethereum.MAPLE_SYRUP_USDC);
 
-        console2.log("Max exchange rates copied");
+        console2.log("Maple max exchange rate copied");
 
-        // Step 3: Migrate UniswapV3 pools
-        // NOTE : SKIPPED because these pools are not returning a valid config from old controller.
-        // _copyUniswapV3PoolConfig(UNISWAP_V3_DAI_USDC_POOL);
-        // _copyUniswapV3PoolConfig(UNISWAP_V3_USDC_USDT_POOL);
+        // Step 3: Copy UniswapV3 pool config (UNISWAP_V3_AUSD_USDC)
 
-        console2.log("UniswapV3 pools copied");
+        _copyUniswapV3PoolConfig(Ethereum.UNISWAP_V3_AUSD_USDC);
+
+        console2.log("UniswapV3 pool config copied");
 
         // Step 4: Grant ALLOCATOR_ROLE to administeredAgent.
 
@@ -110,19 +101,19 @@ contract ConfigureController is Script {
 
         // Step 5: Transfer DEFAULT_ADMIN_ROLE to admin and revoke from deployer.
 
-        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(),  admin);
+        accessControls.grantRole(accessControls.DEFAULT_ADMIN_ROLE(),  Ethereum.GROVE_PROXY);
         accessControls.revokeRole(accessControls.DEFAULT_ADMIN_ROLE(), deployer);
 
-        // Step 6: Add admins, actors and grantors to administeredAgent.
+        // Step 6: Add admins, actors and revokers to administeredAgent.
 
-        IAdministeredAgent(administeredAgent).addActor(config.readAddress(".allocator"));
-        IAdministeredAgent(administeredAgent).addActor(config.readAddress(".backstopAllocator"));
-        IAdministeredAgent(administeredAgent).addGrantor(config.readAddress(".allocatorAdmin"));
-        IAdministeredAgent(administeredAgent).addRevoker(config.readAddress(".allocatorAdmin"));
+        IAdministeredAgent(administeredAgent).addActor(Ethereum.ALM_RELAYER);
+        IAdministeredAgent(administeredAgent).addActor(Ethereum.GROVE_PRIMARY_RELAYER_OPERATOR);
+        IAdministeredAgent(administeredAgent).addActor(Ethereum.GROVE_SECONDARY_RELAYER_OPERATOR);
+        IAdministeredAgent(administeredAgent).addRevoker(Ethereum.ALM_FREEZER);
 
         // Step 7: Add admin to administeredAgent and remove deployer.
 
-        IAdministeredAgent(administeredAgent).addAdmin(admin);
+        IAdministeredAgent(administeredAgent).addAdmin(Ethereum.GROVE_PROXY);
         IAdministeredAgent(administeredAgent).removeAdmin(deployer);
 
         console2.log("AccessControls and AdministeredAgent roles configured and transferred");

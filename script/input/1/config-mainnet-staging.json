@@ -3,10 +3,6 @@
 
     "chainId": 1,
 
-    "admin": "0x1369f7b2b38c76B6478c0f0E66D94923421891Ba",
     "administeredAgent": "0xEe38dB49D43ea7487E273007b2Db5d25CEE979c3",
-    "allocator": "0x0eEC86649E756a23CBc68d9EFEd756f16aD5F85f",
-    "allocatorAdmin": "0xB0113804960345fd0a245788b3423319c86940e5",
-    "backstopAllocator": "0x9187807e07112359C481870feB58f0c117a29179",
     "controller": "0x26F4F2db264352e5606e8785EA41a0133A8e4B06"
 }

@@ -10,6 +10,8 @@ import { PAUFactory } from "../lib/diamond-pau/src/PAUFactory.sol";
 
 import { AdministeredAgentFactory } from "../lib/pau-administered-agent/src/AdministeredAgentFactory.sol";
 
+import { Ethereum } from "../lib/grove-address-registry/src/Ethereum.sol";
+
 contract DeployAccessControlsAndController is Script {
 
     using stdJson     for string;
@@ -46,8 +48,8 @@ contract DeployAccessControlsAndController is Script {
 
         address controller = pauFactory.deployController({
             accessControls : accessControls,
-            proxy          : config.readAddress(".proxy"),
-            rateLimits     : config.readAddress(".rateLimits")
+            proxy          : Ethereum.ALM_PROXY,
+            rateLimits     : Ethereum.ALM_RATE_LIMITS
         });
 
         console2.log("Controller deployed at: ", controller);
