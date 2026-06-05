@@ -85,15 +85,15 @@ abstract contract PostDeployTestBase is Test {
 
         for(uint256 j; j < i; ++j) {
             logs[j] = VmSafe.EthGetLogs({
-                emitter:          vm.parseJsonAddress(response,      string(abi.encodePacked(".result[", vm.toString(j), "].address"))),
-                topics:           vm.parseJsonBytes32Array(response, string(abi.encodePacked(".result[", vm.toString(j), "].topics"))),
-                data:             vm.parseJsonBytes(response,        string(abi.encodePacked(".result[", vm.toString(j), "].data"))),
-                blockNumber:      uint64(0),
-                blockHash:        bytes32(0),
-                transactionHash:  bytes32(0),
-                transactionIndex: uint64(0),
-                logIndex:         uint8(0),
-                removed:          false
+                emitter          : vm.parseJsonAddress(response,      string(abi.encodePacked(".result[", vm.toString(j), "].address"))),
+                topics           : vm.parseJsonBytes32Array(response, string(abi.encodePacked(".result[", vm.toString(j), "].topics"))),
+                data             : vm.parseJsonBytes(response,        string(abi.encodePacked(".result[", vm.toString(j), "].data"))),
+                blockNumber      : uint64(0),
+                blockHash        : bytes32(0),
+                transactionHash  : bytes32(0),
+                transactionIndex : uint64(0),
+                logIndex         : uint8(0),
+                removed          : false
             });
         }
     }
