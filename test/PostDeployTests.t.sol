@@ -44,13 +44,13 @@ interface IOldMainnetControllerLike {
 contract PostDeployTests is PostDeployTestBase {
 
     // Paste from script output.
-    address internal constant ACCESS_CONTROLS    = 0x6743675847fcBc54910a51B2fe560762c91E6e88;
-    address internal constant ADMINISTERED_AGENT = 0xEe38dB49D43ea7487E273007b2Db5d25CEE979c3;
-    address internal constant CONTROLLER         = 0x26F4F2db264352e5606e8785EA41a0133A8e4B06;
+    address internal constant ACCESS_CONTROLS    = 0x10d1AdE77F1b81Ef95057bb2fACE292313F66277;
+    address internal constant ADMINISTERED_AGENT = 0x0f7ca6616CC38132530dC4695778a54de42C21F4;
+    address internal constant CONTROLLER         = 0x0DD65461610Fe5b65cE50A870B10ED0F3d24d8C2;
     address internal constant DEPLOYER           = 0x1ca4ECaF0E13ca833c80dA835DEEa15e1684361d;
 
     // Get from SKY
-    address internal constant ADMINISTERED_AGENT_FACTORY = 0x59d88F37680aE0ACCbBd34A965DA22a9ae344d0d;
+    address internal constant ADMINISTERED_AGENT_FACTORY = 0x2968c3b5478cF93B70aB1e24255d4EDBBd27a089;
     address internal constant BEACON                     = 0x829dC2b7E94B1954F0764E573f2E0d45Afa28199;
     address internal constant PAU_FACTORY                = 0x69A5d548830AC2A4Ba90A44a2C75BDA71f97fc66;
 
@@ -77,7 +77,7 @@ contract PostDeployTests is PostDeployTestBase {
     }
 
     function _getBlock() internal pure returns (uint256) {
-        return 25236408; // Jun-03-2026 10:56:59 AM +UTC : After scripts execution.
+        return 25252729; // Jun-05-2026 05:39:47 PM +UTC : After scripts execution.
     }
 
     function test_deployState() external view {
