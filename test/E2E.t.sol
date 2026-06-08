@@ -211,7 +211,13 @@ contract E2E is PostDeployTestBase {
 
         // Step 3: Add a balanced position straddling the tick, then remove all liquidity
 
-        _addAndRemoveLiquidity(pool, token0Bal < token1Bal ? token0Bal : token1Bal, initTick);
+        _addAndRemoveLiquidity(
+            pool,
+            token0,
+            token1,
+            token0Bal < token1Bal ? token0Bal : token1Bal,
+            initTick
+        );
     }
 
     function _setupUniswapV3(address pool, address token0, address token1, int24 initTick) internal {
@@ -236,29 +242,39 @@ contract E2E is PostDeployTestBase {
         vm.stopPrank();
     }
 
-    function _addAndRemoveLiquidity(address pool, uint256 addAmount, int24 initTick) internal {
-        IUniswapV3Facet.Ticks memory ticks = IUniswapV3Facet.Ticks({
-            lower: initTick - 100,
-            upper: initTick + 100
-        });
-        IUniswapV3Facet.TokenAmounts memory desired = IUniswapV3Facet.TokenAmounts({
-            amount0: addAmount,
-            amount1: addAmount
-        });
+    function _addAndRemoveLiquidity(
+        address pool,
+        address token0,
+        address token1,
+        uint256 addAmount,
+        int24   initTick
+    ) internal {
+        // Add liquidity
+
+        uint256 token0BalBeforeAdd = IERC20(token0).balanceOf(ALM_PROXY);
+        uint256 token1BalBeforeAdd = IERC20(token1).balanceOf(ALM_PROXY);
 
         vm.prank(allocator);
         ( uint256 tokenId, uint128 liquidity, IUniswapV3Facet.TokenAmounts memory used )
             = controller.uniswapV3_addLiquidity(
                 pool,
                 0,
-                ticks,
-                desired,
-                IUniswapV3Facet.TokenAmounts({ amount0: addAmount * 98 / 100, amount1: addAmount * 98 / 100 }),
+                IUniswapV3Facet.Ticks({ lower: initTick - 100, upper: initTick + 100 }), // Ticks
+                IUniswapV3Facet.TokenAmounts({ amount0: addAmount, amount1: addAmount}), // Target
+                IUniswapV3Facet.TokenAmounts({ amount0: addAmount * 98 / 100, amount1: addAmount * 98 / 100 }), // Min
                 block.timestamp + 1 hours
             );
 
         assertGt(tokenId,   0, "position should be minted");
         assertGt(liquidity, 0, "liquidity should be added");
+
+        assertLt(IERC20(token0).balanceOf(ALM_PROXY), token0BalBeforeAdd, "token0 balance should decrease");
+        assertLt(IERC20(token1).balanceOf(ALM_PROXY), token1BalBeforeAdd, "token1 balance should decrease");
+
+        // Remove liquidity
+
+        uint256 token0BalBeforeRemove = IERC20(token0).balanceOf(ALM_PROXY);
+        uint256 token1BalBeforeRemove = IERC20(token1).balanceOf(ALM_PROXY);
 
         vm.prank(allocator);
         IUniswapV3Facet.TokenAmounts memory removed = controller.uniswapV3_removeLiquidity(
@@ -271,6 +287,9 @@ contract E2E is PostDeployTestBase {
 
         assertGt(removed.amount0, 0, "should withdraw AUSD");
         assertGt(removed.amount1, 0, "should withdraw USDC");
+
+        assertGt(IERC20(token0).balanceOf(ALM_PROXY), token0BalBeforeRemove, "token0 balance should increase");
+        assertGt(IERC20(token1).balanceOf(ALM_PROXY), token1BalBeforeRemove, "token1 balance should increase");
     }
 
     /**********************************************************************************************/
