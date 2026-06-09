@@ -27,6 +27,8 @@ import { IUniswapV3PoolLike } from "../lib/diamond-pau/test/interfaces/UniswapV3
 import { GroveBasin }        from "../lib/diamond-pau/lib/grove-basin/src/GroveBasin.sol";
 import { FixedRateProvider } from "../lib/diamond-pau/lib/grove-basin/src/rate-providers/FixedRateProvider.sol";
 
+import { IAdministeredAgent } from "../lib/pau-administered-agent/src/interfaces/IAdministeredAgent.sol";
+
 import { Ethereum } from "../lib/grove-address-registry/src/Ethereum.sol";
 
 import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
@@ -34,10 +36,12 @@ import { PostDeployTestBase } from "./PostDeployTestBase.t.sol";
 contract E2E is PostDeployTestBase {
 
     // Paste from script output.
-    address internal constant ACCESS_CONTROLS = 0x10d1AdE77F1b81Ef95057bb2fACE292313F66277;
-    address internal constant CONTROLLER      = 0x0DD65461610Fe5b65cE50A870B10ED0F3d24d8C2;
+    address internal constant ACCESS_CONTROLS    = 0x10d1AdE77F1b81Ef95057bb2fACE292313F66277;
+    address internal constant ADMINISTERED_AGENT = 0x0f7ca6616CC38132530dC4695778a54de42C21F4;
+    address internal constant CONTROLLER         = 0x0DD65461610Fe5b65cE50A870B10ED0F3d24d8C2;
 
     address internal constant ADMIN       = Ethereum.GROVE_PROXY;
+    address internal constant ALLOCATOR   = Ethereum.ALM_RELAYER;
     address internal constant ALM_PROXY   = Ethereum.ALM_PROXY;
     address internal constant RATE_LIMITS = Ethereum.ALM_RATE_LIMITS;
 
@@ -46,20 +50,19 @@ contract E2E is PostDeployTestBase {
 
     IMainnetControllerFull internal controller;
     IRateLimits            internal rateLimits;
-
-    address internal allocator = makeAddr("allocator");
+    IAdministeredAgent     internal administeredAgent;
 
     function setUp() public {
         vm.createSelectFork(getChain("mainnet").rpcUrl, _getBlock());
 
-        controller = IMainnetControllerFull(payable(CONTROLLER));
-        rateLimits = IRateLimits(RATE_LIMITS);
+        administeredAgent = IAdministeredAgent(ADMINISTERED_AGENT);
+        controller        = IMainnetControllerFull(payable(CONTROLLER));
+        rateLimits        = IRateLimits(RATE_LIMITS);
 
         vm.startPrank(ADMIN);
 
         IALMProxy(ALM_PROXY).grantRole(IALMProxy(ALM_PROXY).CONTROLLER(), CONTROLLER);
         rateLimits.grantRole(rateLimits.CONTROLLER(),                     CONTROLLER);
-        IAccessControl(ACCESS_CONTROLS).grantRole(ALLOCATOR_ROLE,         allocator);
 
         vm.stopPrank();
     }
@@ -104,8 +107,13 @@ contract E2E is PostDeployTestBase {
         vm.expectEmit(address(controller));
         emit IERC4626Facet.ERC4626Deposit(address(syrup), 1_000_000e6, expectedShares);
 
-        vm.prank(allocator);
-        uint256 shares = controller.erc4626_deposit(address(syrup), 1_000_000e6, expectedShares);
+        vm.prank(ALLOCATOR);
+        bytes memory result = administeredAgent.call(
+            address(controller),
+            abi.encodeWithSelector(controller.erc4626_deposit.selector, address(syrup), 1_000_000e6, expectedShares)
+        );
+
+        uint256 shares = abi.decode(result, (uint256));
 
         assertEq(IERC20(Ethereum.USDC).balanceOf(ALM_PROXY),      0);
         assertEq(IERC20(Ethereum.USDC).balanceOf(address(syrup)), syrupUSDCBalBefore + 1_000_000e6);
@@ -127,8 +135,11 @@ contract E2E is PostDeployTestBase {
         vm.expectEmit(address(controller));
         emit IMapleFacet.MapleRequestRedemption(address(syrup), shares);
 
-        vm.prank(allocator);
-        controller.maple_requestRedemption(address(syrup), shares);
+        vm.prank(ALLOCATOR);
+        administeredAgent.call(
+            address(controller),
+            abi.encodeWithSelector(controller.maple_requestRedemption.selector, address(syrup), shares)
+        );
 
         assertEq(syrup.balanceOf(withdrawalManager), escrowedSharesBefore + shares);
         assertEq(syrup.balanceOf(ALM_PROXY),         proxySyrupBalBefore);
@@ -198,8 +209,12 @@ contract E2E is PostDeployTestBase {
 
         deal(token1, ALM_PROXY, 50_000e6);
 
-        vm.prank(allocator);
-        uint256 ausdOut = controller.uniswapV3_swap(pool, token1, 10_000e6, 10_000e6 * 99 / 100, 200);
+        vm.prank(ALLOCATOR);
+        bytes memory result = administeredAgent.call(
+            address(controller),
+            abi.encodeWithSelector(controller.uniswapV3_swap.selector, pool, token1, 10_000e6, 10_000e6 * 99 / 100, 200)
+        );
+        uint256 ausdOut = abi.decode(result, (uint256));
 
         assertGt(ausdOut, 0, "swap should return AUSD");
 
@@ -249,41 +264,82 @@ contract E2E is PostDeployTestBase {
         uint256 addAmount,
         int24   initTick
     ) internal {
-        // Add liquidity
+        (
+            uint256                             tokenId,
+            uint128                             liquidity,
+            IUniswapV3Facet.TokenAmounts memory used
+        ) = _addLiquidity(pool, token0, token1, addAmount, initTick);
 
+        _removeLiquidity(pool, token0, token1, tokenId, liquidity, used);
+    }
+
+    function _addLiquidity(
+        address pool,
+        address token0,
+        address token1,
+        uint256 addAmount,
+        int24   initTick
+    ) internal returns (uint256 tokenId, uint128 liquidity, IUniswapV3Facet.TokenAmounts memory used) {
         uint256 token0BalBeforeAdd = IERC20(token0).balanceOf(ALM_PROXY);
         uint256 token1BalBeforeAdd = IERC20(token1).balanceOf(ALM_PROXY);
 
-        vm.prank(allocator);
-        ( uint256 tokenId, uint128 liquidity, IUniswapV3Facet.TokenAmounts memory used )
-            = controller.uniswapV3_addLiquidity(
-                pool,
-                0,
-                IUniswapV3Facet.Ticks({ lower: initTick - 100, upper: initTick + 100 }), // Ticks
-                IUniswapV3Facet.TokenAmounts({ amount0: addAmount, amount1: addAmount}), // Target
-                IUniswapV3Facet.TokenAmounts({ amount0: addAmount * 98 / 100, amount1: addAmount * 98 / 100 }), // Min
-                block.timestamp + 1 hours
-            );
+        (tokenId, liquidity, used) = abi.decode(
+            _callAddLiquidity(pool, addAmount, initTick),
+            (uint256, uint128, IUniswapV3Facet.TokenAmounts)
+        );
 
         assertGt(tokenId,   0, "position should be minted");
         assertGt(liquidity, 0, "liquidity should be added");
 
         assertLt(IERC20(token0).balanceOf(ALM_PROXY), token0BalBeforeAdd, "token0 balance should decrease");
         assertLt(IERC20(token1).balanceOf(ALM_PROXY), token1BalBeforeAdd, "token1 balance should decrease");
+    }
 
-        // Remove liquidity
+    function _callAddLiquidity(
+        address pool,
+        uint256 addAmount,
+        int24   initTick
+    ) internal returns (bytes memory) {
+        vm.prank(ALLOCATOR);
+        return administeredAgent.call(
+            address(controller),
+            abi.encodeWithSelector(
+                controller.uniswapV3_addLiquidity.selector,
+                pool,
+                0,
+                IUniswapV3Facet.Ticks({ lower: initTick - 100, upper: initTick + 100 }), // Ticks
+                IUniswapV3Facet.TokenAmounts({ amount0: addAmount, amount1: addAmount}), // Target
+                IUniswapV3Facet.TokenAmounts({ amount0: addAmount * 98 / 100, amount1: addAmount * 98 / 100 }), // Min
+                block.timestamp + 1 hours
+            )
+        );
+    }
 
+    function _removeLiquidity(
+        address                             pool,
+        address                             token0,
+        address                             token1,
+        uint256                             tokenId,
+        uint128                             liquidity,
+        IUniswapV3Facet.TokenAmounts memory used
+    ) internal {
         uint256 token0BalBeforeRemove = IERC20(token0).balanceOf(ALM_PROXY);
         uint256 token1BalBeforeRemove = IERC20(token1).balanceOf(ALM_PROXY);
 
-        vm.prank(allocator);
-        IUniswapV3Facet.TokenAmounts memory removed = controller.uniswapV3_removeLiquidity(
-            pool,
-            tokenId,
-            liquidity,
-            IUniswapV3Facet.TokenAmounts({ amount0: used.amount0 * 98 / 100, amount1: used.amount1 * 98 / 100 }),
-            block.timestamp + 1 hours
+        vm.prank(ALLOCATOR);
+        bytes memory result = administeredAgent.call(
+            address(controller),
+            abi.encodeWithSelector(
+                controller.uniswapV3_removeLiquidity.selector,
+                pool,
+                tokenId,
+                liquidity,
+                IUniswapV3Facet.TokenAmounts({ amount0: used.amount0 * 98 / 100, amount1: used.amount1 * 98 / 100 }),
+                block.timestamp + 1 hours
+            )
         );
+
+        IUniswapV3Facet.TokenAmounts memory removed = abi.decode(result, (IUniswapV3Facet.TokenAmounts));
 
         assertGt(removed.amount0, 0, "should withdraw AUSD");
         assertGt(removed.amount1, 0, "should withdraw USDC");
@@ -339,8 +395,13 @@ contract E2E is PostDeployTestBase {
         vm.expectEmit(address(controller));
         emit IBasinFacet.BasinDeposit(address(basin), Ethereum.USDS, depositAmount, expectedShares);
 
-        vm.prank(allocator);
-        uint256 shares = controller.basin_deposit(address(basin), Ethereum.USDS, depositAmount, expectedShares);
+        vm.prank(ALLOCATOR);
+        bytes memory result = administeredAgent.call(
+            address(controller),
+            abi.encodeWithSelector(controller.basin_deposit.selector, address(basin), Ethereum.USDS, depositAmount, expectedShares)
+        );
+
+        uint256 shares = abi.decode(result, (uint256));
 
         assertEq(shares, expectedShares);
         assertGt(shares, 0);
@@ -355,8 +416,13 @@ contract E2E is PostDeployTestBase {
         vm.expectEmit(address(controller));
         emit IBasinFacet.BasinWithdraw(address(basin), Ethereum.USDS, withdrawAmount, expectedShares);
 
-        vm.prank(allocator);
-        uint256 assetsWithdrawn = controller.basin_withdraw(address(basin), Ethereum.USDS, withdrawAmount, 1e18);
+        vm.prank(ALLOCATOR);
+        result = administeredAgent.call(
+            address(controller),
+            abi.encodeWithSelector(controller.basin_withdraw.selector, address(basin), Ethereum.USDS, withdrawAmount, 1e18)
+        );
+
+        uint256 assetsWithdrawn = abi.decode(result, (uint256));
 
         assertEq(assetsWithdrawn,                                 withdrawAmount);
         assertEq(IERC20(Ethereum.USDS).balanceOf(ALM_PROXY),      withdrawAmount);
