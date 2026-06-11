@@ -1,8 +1,8 @@
 # Grove PAU Deploy
 
-![Foundry CI](https://github.com/sparkdotfi/grove-pau-deploy/actions/workflows/ci.yml/badge.svg)
+![Foundry CI](https://github.com/sky-ecosystem/grove-pau-deploy/actions/workflows/ci.yml/badge.svg)
 [![Foundry][foundry-badge]][foundry]
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/sparkdotfi/grove-pau-deploy/blob/master/LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/sparkdotfi/sky-ecosystem/blob/master/LICENSE)
 
 [foundry]: https://getfoundry.sh/
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
