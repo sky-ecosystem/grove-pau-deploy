@@ -21,6 +21,8 @@ forge build
 forge test
 ```
 
+***
+
 <p align="center">
   <img src="https://github.com/user-attachments/assets/84ca8724-b6ad-42ef-9c5b-32abd1bb5e03" height="100"/>
 </p>
