@@ -1,8 +1,8 @@
 # Grove PAU Deploy
 
-<!-- ![Foundry CI](https://github.com/{org}/{repo}/actions/workflows/ci.yml/badge.svg)
+![Foundry CI](https://github.com/marsfoundation/grove-pau-deploy/actions/workflows/ci.yml/badge.svg)
 [![Foundry][foundry-badge]][foundry]
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/{org}/{repo}/blob/master/LICENSE) -->
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://github.com/marsfoundation/grove-pau-deploy/blob/master/LICENSE)
 
 [foundry]: https://getfoundry.sh/
 [foundry-badge]: https://img.shields.io/badge/Built%20with-Foundry-FFDB1C.svg
